@@ -110,14 +110,12 @@ export default async function SearchPage({ searchParams }: Props) {
                       <div className="text-lg font-semibold">
                         ${r.price.toLocaleString()}
                       </div>
-                      {r.url ? (
-                        <a
-                          href={r.url}
-                          className="text-sm font-medium text-zinc-700 hover:text-black"
-                        >
-                          View →
-                        </a>
-                      ) : null}
+                      <Link
+                        href={r.url ?? `/listings/${encodeURIComponent(r.id)}`}
+                        className="text-sm font-medium text-zinc-700 hover:text-black"
+                      >
+                        View →
+                      </Link>
                     </div>
                   </div>
                 </div>

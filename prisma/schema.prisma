@@ -74,6 +74,8 @@ model Listing {
   price        Int?
   beds         Int?
   baths        Int?
+  sqft         Int?
+  yearBuilt    Int?
   propertyType String?
   photoUrl     String?
   raw          Json
@@ -84,13 +86,37 @@ model Listing {
   @@index([status])
   @@index([city])
   @@index([propertyType])
+
+  leads Lead[]
+}
+
+model Lead {
+  id         String    @id @default(cuid())
+  email      String
+  name       String?
+  phone      String?
+  message    String?
+  source     String    // listing_contact | contact_page | home_cta
+  listingId  String?
+  listing    Listing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([listingId])
+  @@index([source])
+  @@index([createdAt])
 }
 
 model DdfSyncState {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  cursor    String?
-  lastRunAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  name        String    @unique
+  cursor      String?
+  lastRunAt   DateTime?
+  status      String?   // running | success | failed
+  lastError   String?
+  processed   Int?
+  upserted    Int?
+  errorCount  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

@@ -10,6 +10,7 @@ type Listing = {
   price: number;
   beds?: number;
   baths?: number;
+  url?: string;
 };
 
 export default function MlsPage() {
@@ -108,6 +109,12 @@ export default function MlsPage() {
                     <div className="text-lg font-semibold">
                       ${r.price.toLocaleString()}
                     </div>
+                    <Link
+                      href={r.url ?? `/listings/${encodeURIComponent(r.id)}`}
+                      className="text-sm font-medium text-zinc-700 hover:text-black"
+                    >
+                      View →
+                    </Link>
                   </div>
                 </div>
               </div>
