@@ -145,28 +145,87 @@ function normalizeListing(raw: any) {
     pickFirst(r?.PropertyType, r?.Type, building?.Type, (r?.Property as Record<string, unknown>)?.Type) ?? null;
 
   // CREA Appendix F: Photo (collection) → PropertyPhoto[] with PhotoURL, LargePhotoURL, ThumbnailURL
+  // DDF feed may wrap content under a namespace key (e.g. Photo: { "urn:...": { PropertyPhoto: [...] } }); unwrap once.
   const photoCollection = (r?.Photo && typeof r.Photo === "object" ? r.Photo : getByKey(r, "Photo")) as Record<string, unknown> | null | undefined;
-  const propertyPhotoList = photoCollection && typeof photoCollection === "object"
-    ? Array.isArray(photoCollection.PropertyPhoto)
-      ? (photoCollection.PropertyPhoto as unknown[])
-      : photoCollection.PropertyPhoto
-        ? [photoCollection.PropertyPhoto]
+  let photoLookup: Record<string, unknown> | null | undefined = photoCollection;
+  if (photoCollection && typeof photoCollection === "object" && !Array.isArray(photoCollection)) {
+    const keys = Object.keys(photoCollection).filter((k) => !k.startsWith("@_"));
+    if (keys.length === 1) {
+      const child = photoCollection[keys[0]];
+      if (child != null && typeof child === "object" && !Array.isArray(child)) {
+        photoLookup = child as Record<string, unknown>;
+      }
+    }
+  }
+  const propertyPhotoList = photoLookup && typeof photoLookup === "object" && !Array.isArray(photoLookup)
+    ? Array.isArray(photoLookup.PropertyPhoto)
+      ? (photoLookup.PropertyPhoto as unknown[])
+      : photoLookup.PropertyPhoto
+        ? [photoLookup.PropertyPhoto]
         : []
     : [];
   const firstPropertyPhoto =
     propertyPhotoList[0] && typeof propertyPhotoList[0] === "object"
       ? (propertyPhotoList[0] as Record<string, unknown>)
       : null;
+  // When Photo exists but has no PropertyPhoto[], treat Photo as single object with URL (CREA DDF fetchDetails response shape).
+  const photoCollectionUrl =
+    photoLookup && typeof photoLookup === "object" && !Array.isArray(photoLookup) && propertyPhotoList.length === 0
+      ? (pickNodeStr(photoLookup, "LargePhotoURL", "PhotoURL", "MediaURL", "URL") ??
+         nodeStr((photoLookup.LargePhotoURL ?? photoLookup.PhotoURL ?? photoLookup.MediaURL ?? photoLookup.URL) as unknown) ??
+         nodeStr(getByKey(photoLookup, "LargePhotoURL", "PhotoURL", "MediaURL", "URL")))
+      : null;
   const photoUrlStr =
     (firstPropertyPhoto
       ? (pickNodeStr(firstPropertyPhoto, "LargePhotoURL", "PhotoURL", "MediaURL", "URL") ??
          nodeStr(firstPropertyPhoto.LargePhotoURL ?? firstPropertyPhoto.PhotoURL ?? firstPropertyPhoto.MediaURL ?? firstPropertyPhoto.URL))
       : null) ??
+    photoCollectionUrl ??
+    pickNodeStr(r, "AlternateURL", "PhotoURL", "PhotoUrl") ??
+    nodeStr(getByKey(r, "AlternateURL", "PhotoURL", "PhotoUrl")) ??
     pickNodeStr(r, "PhotoURL", "PhotoUrl") ??
     nodeStr(media0) ??
     nodeStr(mediaFirst?.MediaURL ?? mediaFirst?.URL) ??
     null;
   const photoUrl = typeof photoUrlStr === "string" && photoUrlStr.startsWith("http") ? photoUrlStr : null;
+
+  // #region agent log
+  if (!photoUrl) {
+    const g = global as unknown as { __photoLogCount: number };
+    g.__photoLogCount = (g.__photoLogCount || 0) + 1;
+    if (g.__photoLogCount <= 5) {
+      const photoKeys = Object.keys(r).filter((k) => /photo|media|url|image/i.test(k));
+      const photoCollectionKeys = photoCollection && typeof photoCollection === "object" ? Object.keys(photoCollection) : [];
+      const payload = {
+        location: "mls/sync/route.ts:normalizeListing",
+        message: "DDF listing photo extraction (photoUrl null)",
+        data: {
+          ddfId: ddfIdStr,
+          hasPhotoCollection: Boolean(photoCollection && typeof photoCollection === "object"),
+          photoCollectionKeys,
+          hasFirstPropertyPhoto: Boolean(firstPropertyPhoto),
+          firstPropertyPhotoKeys: firstPropertyPhoto ? Object.keys(firstPropertyPhoto) : [],
+          photoUrlStrLen: typeof photoUrlStr === "string" ? photoUrlStr.length : 0,
+          photoUrlStrStartsHttp: typeof photoUrlStr === "string" && photoUrlStr.startsWith("http"),
+          rawPhotoRelatedKeys: photoKeys,
+        },
+        timestamp: Date.now(),
+        hypothesisId: "H1",
+      };
+      try {
+        require("fs").appendFileSync(
+          require("path").join(process.cwd(), ".cursor", "debug.log"),
+          JSON.stringify(payload) + "\n"
+        );
+      } catch {}
+      fetch("http://127.0.0.1:7242/ingest/989fcf82-5e2c-43b6-af60-a19ff17876f2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    }
+  }
+  // #endregion
 
   // CREA: Building.SquareFeet, LivingArea, BuildingAreaTotal, TotalFloorArea
   const sqft = toInt(
@@ -532,6 +591,11 @@ export async function POST(req: Request) {
     const fetchDetails =
       url.searchParams.get("fetchDetails") === "1" || url.searchParams.get("fetchDetails") === "true";
     const debugDetails = url.searchParams.get("debugDetails") === "1";
+    // Ontario only: Province=ON. Override with ?province= or env MLS_PROVINCE (empty = no filter).
+    const provinceFilter = url.searchParams.get("province") ?? process.env.MLS_PROVINCE ?? "ON";
+    const dmqlQuery = provinceFilter
+      ? `(ID=*),(Province=${provinceFilter})`
+      : "(ID=*)";
 
     const sample: any[] = [];
     let firstPropertyXml: string | null = null;
@@ -551,7 +615,7 @@ export async function POST(req: Request) {
         SearchType: "Property",
         Class: searchClass,
         QueryType: "DMQL2",
-        Query: "(ID=*)",
+        Query: dmqlQuery,
         Count: "1",
         Limit: String(perPage),
         Offset: String(offset),
@@ -613,6 +677,7 @@ export async function POST(req: Request) {
 
       const pageProcessed = { processed: 0, upserted: 0, skipped: 0, errors: 0 };
       await step(upsertStepName, async () => {
+        (global as unknown as { __photoLogCount?: number }).__photoLogCount = 0;
         for (const raw of props) {
           if (processed >= limit) break;
           processed += 1;
@@ -795,6 +860,8 @@ export async function POST(req: Request) {
       },
       searchFirst200: searchResFirst200,
       searchClass,
+      provinceFilter: provinceFilter || undefined,
+      dmqlQuery,
       fetchDetails,
       getObjectUrl: GET_OBJECT_URL,
       sample,
@@ -860,6 +927,7 @@ export async function GET() {
       "DDF_SEARCH_URL (default https://data.crea.ca/Search.svc/Search)",
       "MLS_SYNC_KEY (prod only)",
       "MLS_SYNC_MAX_LISTINGS (cap per run, default 500; prevents pulling thousands)",
+      "MLS_PROVINCE (default ON = Ontario only; empty = no province filter)",
     ],
     usage: {
       example: exampleCurl,
@@ -867,6 +935,7 @@ export async function GET() {
         limit: "max items to process this run (default 50, max from MLS_SYNC_MAX_LISTINGS or 500)",
         pages: "max pages to fetch (default 5, max 50)",
         perPage: "page size (default 100, max 100)",
+        province: "filter by province (default ON = Ontario only; empty = all provinces)",
         class: "Property (default, master list) or PropertyDetails (full listing: address, price, photos)",
         fetchDetails: "1 to fetch full listing per ID via Search(ID=<ddfId>) (per realtypress.ca DDF testing)",
         dryRun: "true/1 to skip DB writes (recommended first run)",

@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import { ListingHeroImage } from "../ListingHeroImage";
+import { SaveListingButton } from "./SaveListingButton";
 
 /** Pick first non-empty string from MLS raw. */
 function pickFirstStr(...vals: unknown[]): string | null {
@@ -60,10 +63,30 @@ export default async function ListingPage({ params }: PageProps) {
     notFound();
   }
 
+  const session = await getServerSession(authOptions);
+  let isSaved = false;
+  if (session?.user?.id) {
+    const saved = await prisma.savedListing.findUnique({
+      where: {
+        userId_listingId: {
+          userId: session.user.id as string,
+          listingId: listing.id,
+        },
+      },
+    });
+    isSaved = !!saved;
+  }
+
   const imageSrc =
     (listing.photoUrl && listing.photoUrl.trim()) ||
     (listing.mlsNumber ? `/api/listings/photo?mlsNumber=${encodeURIComponent(listing.mlsNumber)}` : null) ||
     (listing.ddfId ? `/api/listings/photo?ddfId=${encodeURIComponent(listing.ddfId)}` : null);
+  // #region agent log
+  const usedPhotoUrl = Boolean(listing.photoUrl && listing.photoUrl.trim());
+  const payload = { location: "listings/[id]/page.tsx", message: "Listing image source", data: { listingId: id, hasPhotoUrl: usedPhotoUrl, hasMlsNumber: Boolean(listing.mlsNumber), hasDdfId: Boolean(listing.ddfId), imageSrcType: usedPhotoUrl ? "photoUrl" : imageSrc?.startsWith("/api/") ? "proxy" : "empty" }, hypothesisId: "H5" };
+  try { require("fs").appendFileSync(require("path").join(process.cwd(), ".cursor", "debug.log"), JSON.stringify(payload) + "\n"); } catch {}
+  fetch("http://127.0.0.1:7242/ingest/989fcf82-5e2c-43b6-af60-a19ff17876f2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {});
+  // #endregion
   const price = listing.price
     ? new Intl.NumberFormat("en-CA", {
         style: "currency",
@@ -145,6 +168,9 @@ export default async function ListingPage({ params }: PageProps) {
             >
               Contact us
             </Link>
+            {session?.user && (
+              <SaveListingButton listingId={listing.id} initialSaved={isSaved} />
+            )}
           </aside>
         </div>
       </section>

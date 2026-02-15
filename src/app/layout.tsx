@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: { default: "Yorksell", template: "%s | Yorksell" },
@@ -31,10 +32,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="overflow-x-hidden">
-      <body className="overflow-x-hidden">
+      <body className="flex min-h-screen flex-col overflow-x-hidden">
         <Providers>
           <SiteHeader />
-          {children}
+          <div className="flex-1">{children}</div>
+          <SiteFooter />
         </Providers>
       </body>
     </html>

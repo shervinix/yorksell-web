@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
 
-const SOURCES = ["listing_contact", "contact_page", "home_cta"] as const;
+const SOURCES = ["listing_contact", "contact_page", "home_cta", "buy_page", "sell_page", "property_management_page", "newsletter", "join_page"] as const;
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id ? (session.user.id as string) : null;
     const body = await req.json().catch(() => ({}));
     const emailRaw = typeof body?.email === "string" ? body.email.trim() : "";
     const email = emailRaw.toLowerCase();
@@ -60,6 +64,7 @@ export async function POST(req: Request) {
         message,
         source,
         listingId,
+        userId: userId ?? undefined,
         metadata: metadata ?? undefined,
       },
       select: { id: true, email: true, createdAt: true },

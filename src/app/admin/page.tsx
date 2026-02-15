@@ -169,7 +169,7 @@ export default function AdminPage() {
             {triggering ? "Running…" : "Run sync"}
           </button>
         </div>
-        {triggerResult && (
+        {triggerResult != null && (
           <pre className="mt-4 max-h-60 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-800">
             {JSON.stringify(triggerResult, null, 2)}
           </pre>

@@ -4,7 +4,7 @@ const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://yorksell.com";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api/", "/members", "/login", "/signup"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api/", "/members", "/login", "/signup", "/join"] },
     sitemap: `${BASE}/sitemap.xml`,
   };
 }

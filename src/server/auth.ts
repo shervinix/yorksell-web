@@ -7,6 +7,10 @@ import { prisma } from "@/server/db/prisma";
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
 
+  pages: {
+    signIn: "/login",
+  },
+
   session: {
     strategy: "jwt",
   },
@@ -22,8 +26,9 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const email = credentials.email.toLowerCase().trim();
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
         });
 
         if (!user || !user.passwordHash) return null;

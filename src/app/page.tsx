@@ -480,21 +480,112 @@ export default function HomePage() {
             </div>
           </div>
 
-          <footer className="mt-14 border-t border-white/[0.06] pt-8 text-xs text-[var(--muted)]">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p>© {new Date().getFullYear()} Yorksell Real Estate Group.</p>
-              <div className="flex gap-6">
-                <Link href="/privacy" className="hover:text-[var(--foreground)]">Privacy</Link>
-                <Link href="/terms" className="hover:text-[var(--foreground)]">Terms</Link>
+          {/* Join Our Network / Newsletter */}
+          <div className="mt-16 rounded-3xl border border-white/[0.08] bg-[var(--surface-elevated)]/98 p-10 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-sm md:p-14 lg:p-16">
+            <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
+              <div className="max-w-lg">
+                <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl lg:text-4xl">
+                  Join our network
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-[var(--muted)] md:text-lg">
+                  Get market insights, new listings, and updates from Yorksell. No spam — we send only what’s useful.
+                </p>
               </div>
+              <JoinNetworkForm />
             </div>
-          </footer>
+          </div>
+
         </div>
       </section>
     </div>
   );
 }
 
+
+function JoinNetworkForm() {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          name: name.trim() || undefined,
+          source: "newsletter",
+        }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setStatus("error");
+        setMessage(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setStatus("success");
+      setMessage(data.message ?? "Thanks — you're on the list.");
+      setEmail("");
+      setName("");
+    } catch {
+      setStatus("error");
+      setMessage("Something went wrong. Please try again.");
+    }
+  }
+
+  const inputClass =
+    "w-full rounded-xl border border-white/10 bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] placeholder-[var(--muted)] outline-none transition focus:border-[var(--accent)]/50 focus:ring-2 focus:ring-[var(--accent)]/30";
+
+  return (
+    <form onSubmit={onSubmit} className="w-full min-w-0 lg:max-w-md">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
+        <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+          <input
+            type="email"
+            name="email"
+            required
+            placeholder="Your email"
+            className={inputClass}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={status === "loading"}
+          />
+          <input
+            type="text"
+            name="name"
+            placeholder="Name (optional)"
+            className={inputClass + " sm:w-40"}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={status === "loading"}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="shrink-0 rounded-xl bg-[var(--accent)] px-6 py-3 text-base font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60 sm:px-8"
+        >
+          {status === "loading" ? "Joining…" : "Join"}
+        </button>
+      </div>
+      {message && (
+        <p
+          className={
+            "mt-4 text-sm " +
+            (status === "success" ? "text-green-500" : status === "error" ? "text-red-400" : "text-[var(--muted)]")
+          }
+        >
+          {message}
+        </p>
+      )}
+    </form>
+  );
+}
 
 function TrustStat({ value, label }: { value: string; label: string }) {
   return (

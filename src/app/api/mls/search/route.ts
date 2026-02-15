@@ -44,7 +44,7 @@ export async function GET(req: Request) {
               {
                 mlsNumber: {
                   contains: qRaw.replace(/\s+/g, ""),
-                  mode: "insensitive",
+                  mode: "insensitive" as const,
                 },
               },
             ]
@@ -52,19 +52,19 @@ export async function GET(req: Request) {
         {
           addressLine: {
             contains: qRaw,
-            mode: "insensitive",
+            mode: "insensitive" as const,
           },
         },
         {
           city: {
             contains: qRaw,
-            mode: "insensitive",
+            mode: "insensitive" as const,
           },
         },
         {
           postalCode: {
             contains: qRaw.replace(/\s+/g, ""),
-            mode: "insensitive",
+            mode: "insensitive" as const,
           },
         },
       ],

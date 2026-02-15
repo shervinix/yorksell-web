@@ -14,11 +14,19 @@ model User {
   emailVerified DateTime?
   image         String?
 
+  // Profile / contact
+  phone   String?
+  company String?
+  address String?
+
   // For credentials login
   passwordHash String?
 
   accounts Account[]
   sessions Session[]
+  savedListings SavedListing[]
+  leads Lead[]
+  client Client?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -74,6 +82,7 @@ model Listing {
   price        Int?
   beds         Int?
   baths        Int?
+  den          Int?   // number of dens / flex rooms
   sqft         Int?
   yearBuilt    Int?
   propertyType String?
@@ -86,8 +95,24 @@ model Listing {
   @@index([status])
   @@index([city])
   @@index([propertyType])
+  @@index([den])
 
   leads Lead[]
+  savedListings SavedListing[]
+}
+
+model SavedListing {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
 }
 
 model Lead {
@@ -98,13 +123,16 @@ model Lead {
   message    String?
   source     String    // listing_contact | contact_page | home_cta
   listingId  String?
+  userId     String?   // when submitted while logged in
   listing    Listing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   metadata   Json?
   createdAt  DateTime  @default(now())
 
   @@index([listingId])
   @@index([source])
   @@index([createdAt])
+  @@index([userId])
 }
 
 model DdfSyncState {
@@ -119,4 +147,61 @@ model DdfSyncState {
   errorCount  Int?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model Client {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique
+  buyerClient               Boolean  @default(false)
+  sellerClient              Boolean  @default(false)
+  propertyManagementClient  Boolean  @default(false)
+  showFiles                 Boolean  @default(true)
+  showStats                 Boolean  @default(true)
+  showNotes                 Boolean  @default(true)
+  showUpdates               Boolean  @default(true)
+  statsJson                 Json?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files  ClientFile[]
+  notes  ClientNote[]
+  updates ClientUpdate[]
+
+  @@index([userId])
+}
+
+model ClientFile {
+  id        String   @id @default(cuid())
+  clientId  String
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientUpdate {
+  id        String   @id @default(cuid())
+  clientId  String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }
