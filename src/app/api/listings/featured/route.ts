@@ -1,30 +1,34 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
 
-const FEATURED_COUNT = 3;
-const POOL_SIZE = 50; // fetch up to 50, then pick 3 random (keeps load small)
+const FEATURED_SETTING_KEY = "featured_mls_numbers";
+const DEFAULT_MLS_NUMBERS = ["C12677558", "N12855168", "C12733910"];
 
-// Prisma singleton for dev hot-reload safety
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
-
-function shuffle<T>(arr: T[]): T[] {
-  const out = [...arr];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+function getFeaturedMlsNumbers(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => (typeof v === "string" ? v.trim() : ""))
+      .filter(Boolean);
   }
-  return out;
+  return DEFAULT_MLS_NUMBERS;
 }
 
 export async function GET() {
   try {
-    const pool = await prisma.listing.findMany({
-      orderBy: { updatedAt: "desc" },
-      take: POOL_SIZE,
+    const setting = await prisma.siteSetting.findUnique({
+      where: { key: FEATURED_SETTING_KEY },
+    });
+    const featuredMlsNumbers = getFeaturedMlsNumbers(setting?.value ?? DEFAULT_MLS_NUMBERS);
+    if (featuredMlsNumbers.length === 0) {
+      return NextResponse.json({ listings: [] }, { status: 200 });
+    }
+
+    const rows = await prisma.listing.findMany({
+      where: {
+        mlsNumber: { in: featuredMlsNumbers, mode: "insensitive" },
+      },
       select: {
         id: true,
         ddfId: true,
@@ -42,7 +46,15 @@ export async function GET() {
       },
     });
 
-    const listings = shuffle(pool).slice(0, FEATURED_COUNT);
+    // Return in the handpicked order (DB order is undefined with `in`)
+    const orderMap = new Map(
+      featuredMlsNumbers.map((mls, i) => [mls.toLowerCase(), i])
+    );
+    const listings = [...rows].sort(
+      (a, b) =>
+        (orderMap.get((a.mlsNumber ?? "").toLowerCase()) ?? 999) -
+        (orderMap.get((b.mlsNumber ?? "").toLowerCase()) ?? 999)
+    );
 
     return NextResponse.json({ listings }, { status: 200 });
   } catch (err) {

@@ -48,6 +48,12 @@ function toInt(v: any): number | null {
   return Number.isFinite(n) ? Math.trunc(n) : null;
 }
 
+function toFloat(v: any): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
 function pickFirst<T>(...vals: T[]): T | undefined {
   for (const v of vals) {
     if (v === undefined || v === null) continue;
@@ -171,21 +177,25 @@ function normalizeListing(raw: any) {
   // When Photo exists but has no PropertyPhoto[], treat Photo as single object with URL (CREA DDF fetchDetails response shape).
   const photoCollectionUrl =
     photoLookup && typeof photoLookup === "object" && !Array.isArray(photoLookup) && propertyPhotoList.length === 0
-      ? (pickNodeStr(photoLookup, "LargePhotoURL", "PhotoURL", "MediaURL", "URL") ??
-         nodeStr((photoLookup.LargePhotoURL ?? photoLookup.PhotoURL ?? photoLookup.MediaURL ?? photoLookup.URL) as unknown) ??
-         nodeStr(getByKey(photoLookup, "LargePhotoURL", "PhotoURL", "MediaURL", "URL")))
+      ? (pickNodeStr(photoLookup, "LargePhotoURL", "PhotoURL", "ThumbnailPhotoURL", "MediaURL", "URL") ??
+         nodeStr((photoLookup.LargePhotoURL ?? photoLookup.PhotoURL ?? photoLookup.ThumbnailPhotoURL ?? photoLookup.MediaURL ?? photoLookup.URL) as unknown) ??
+         nodeStr(getByKey(photoLookup, "LargePhotoURL", "PhotoURL", "ThumbnailPhotoURL", "MediaURL", "URL")))
       : null;
+  // CREA DDF exposes ThumbnailPhotoURL, PhotoURL, LargePhotoURL directly on the payload (post-2020); prefer root-level then first PropertyPhoto.
   const photoUrlStr =
     (firstPropertyPhoto
-      ? (pickNodeStr(firstPropertyPhoto, "LargePhotoURL", "PhotoURL", "MediaURL", "URL") ??
-         nodeStr(firstPropertyPhoto.LargePhotoURL ?? firstPropertyPhoto.PhotoURL ?? firstPropertyPhoto.MediaURL ?? firstPropertyPhoto.URL))
+      ? (pickNodeStr(firstPropertyPhoto, "LargePhotoURL", "PhotoURL", "ThumbnailPhotoURL", "MediaURL", "URL") ??
+         nodeStr(firstPropertyPhoto.LargePhotoURL ?? firstPropertyPhoto.PhotoURL ?? firstPropertyPhoto.ThumbnailPhotoURL ?? firstPropertyPhoto.MediaURL ?? firstPropertyPhoto.URL))
       : null) ??
     photoCollectionUrl ??
+    pickNodeStr(r, "LargePhotoURL", "PhotoURL", "ThumbnailPhotoURL", "AlternateURL", "PhotoUrl") ??
+    nodeStr(getByKey(r, "LargePhotoURL", "PhotoURL", "ThumbnailPhotoURL", "AlternateURL", "PhotoUrl")) ??
     pickNodeStr(r, "AlternateURL", "PhotoURL", "PhotoUrl") ??
     nodeStr(getByKey(r, "AlternateURL", "PhotoURL", "PhotoUrl")) ??
     pickNodeStr(r, "PhotoURL", "PhotoUrl") ??
     nodeStr(media0) ??
     nodeStr(mediaFirst?.MediaURL ?? mediaFirst?.URL) ??
+    deepScanPhotoUrl(r) ??
     null;
   const photoUrl = typeof photoUrlStr === "string" && photoUrlStr.startsWith("http") ? photoUrlStr : null;
 
@@ -227,12 +237,47 @@ function normalizeListing(raw: any) {
   }
   // #endregion
 
-  // CREA: Building.SquareFeet, LivingArea, BuildingAreaTotal, TotalFloorArea
+  // CREA: interior area – many boards use Building.SizeInterior / SizeTotal / BuildingAreaTotal / TotalFloorArea, etc.
   const sqft = toInt(
-    (building ? pickNodeStr(building, "SquareFeet", "LivingArea", "BuildingArea", "BuildingAreaTotal", "TotalFloorArea", "InteriorFloorArea") : null) ??
-    pickNodeStr(r, "SquareFeet", "LivingArea", "BuildingArea", "BuildingAreaTotal", "TotalFloorArea") ??
-    nodeStr(getByKey(r, "SquareFeet", "LivingArea", "BuildingAreaTotal")) ??
-    pickFirst(building?.SquareFeet, building?.LivingArea, building?.BuildingAreaTotal, building?.TotalFloorArea, r?.SquareFeet, r?.LivingArea)
+    (building
+      ? pickNodeStr(
+          building,
+          "SizeInterior",
+          "SizeTotal",
+          "BuildingAreaTotal",
+          "BuildingArea",
+          "TotalFloorArea",
+          "InteriorFloorArea",
+          "SquareFeet",
+          "LivingArea"
+        )
+      : null) ??
+      pickNodeStr(
+        r,
+        "SizeInterior",
+        "SizeTotal",
+        "BuildingAreaTotal",
+        "BuildingArea",
+        "TotalFloorArea",
+        "InteriorFloorArea",
+        "SquareFeet",
+        "LivingArea"
+      ) ??
+      nodeStr(getByKey(r, "SizeInterior", "SizeTotal", "BuildingAreaTotal", "TotalFloorArea", "SquareFeet")) ??
+      pickFirst(
+        building?.SizeInterior,
+        building?.SizeTotal,
+        building?.BuildingAreaTotal,
+        building?.TotalFloorArea,
+        building?.SquareFeet,
+        building?.LivingArea,
+        (r as any)?.SizeInterior,
+        (r as any)?.SizeTotal,
+        (r as any)?.BuildingAreaTotal,
+        (r as any)?.TotalFloorArea,
+        (r as any)?.SquareFeet,
+        (r as any)?.LivingArea
+      )
   );
 
   const yearBuilt = toInt(
@@ -251,6 +296,14 @@ function normalizeListing(raw: any) {
   const statusRaw = pickNodeStr(r, "Status", "ListingStatus", "TransactionType") ?? pickFirst(r?.Status, r?.ListingStatus, r?.TransactionType);
   const status = statusRaw != null ? String(statusRaw) : null;
 
+  // CREA DDF / RETS: coordinates when provided by board (Latitude/Longitude or Geo*)
+  const lat =
+    toFloat(pickNodeStr(r, "Latitude", "Lat", "GeoLatitude") ?? getByKey(r, "Latitude", "Lat", "GeoLatitude")) ??
+    (addr ? toFloat(pickNodeStr(addr, "Latitude", "Lat") ?? getByKey(addr, "Latitude", "Lat")) : null);
+  const lng =
+    toFloat(pickNodeStr(r, "Longitude", "Lng", "Lon", "GeoLongitude") ?? getByKey(r, "Longitude", "Lng", "Lon", "GeoLongitude")) ??
+    (addr ? toFloat(pickNodeStr(addr, "Longitude", "Lng", "Lon") ?? getByKey(addr, "Longitude", "Lng", "Lon")) : null);
+
   return {
     ddfId: ddfIdStr,
     mlsNumber,
@@ -259,8 +312,8 @@ function normalizeListing(raw: any) {
     city: typeof city === "string" ? city : null,
     province: typeof province === "string" ? province : null,
     postalCode: typeof postalCode === "string" ? postalCode : null,
-    lat: null,
-    lng: null,
+    lat,
+    lng,
     price,
     beds,
     baths,
@@ -300,6 +353,35 @@ function getByKey(obj: Record<string, unknown>, ...suffixes: string[]): unknown 
     if (found) return obj[found];
   }
   return undefined;
+}
+
+/** Recursively scan object for any key that looks like a photo URL (CREA namespaced or nested). Returns first http(s) string found. */
+function deepScanPhotoUrl(obj: unknown, depth = 0): string | null {
+  if (depth > 4 || obj == null) return null;
+  if (typeof obj === "string" && (obj.startsWith("http://") || obj.startsWith("https://"))) return obj;
+  if (typeof obj !== "object") return null;
+  const r = obj as Record<string, unknown>;
+  const photoKeys = Object.keys(r).filter(
+    (k) => /(largephotourl|photourl|thumbnailphotourl|photo_url|mediaurl)/i.test(k)
+  );
+  for (const k of photoKeys) {
+    const v = r[k];
+    const s = typeof v === "string" ? v : v && typeof v === "object" && "#text" in v ? String((v as { "#text": unknown })["#text"]) : null;
+    if (typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://"))) return s;
+  }
+  for (const v of Object.values(r)) {
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const found = deepScanPhotoUrl(v, depth + 1);
+      if (found) return found;
+    }
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        const found = deepScanPhotoUrl(item, depth + 1);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -455,11 +537,7 @@ function extractRetsUrlsFromLogin(parsed: any) {
     if (k && v) map[k] = v;
   }
 
-  return {
-    loginUrl: map.Login,
-    searchUrl: map.Search,
-    getObjectUrl: map.GetObject,
-  };
+  return { map, loginUrl: map.Login, searchUrl: map.Search, getObjectUrl: map.GetObject };
 }
 
 type StepLog = { step: string; start?: boolean; done?: boolean; ms?: number; message?: string };
@@ -556,10 +634,12 @@ export async function POST(req: Request) {
     let SEARCH_URL = FALLBACK_SEARCH_URL;
     const FALLBACK_GET_OBJECT_URL = "https://data.crea.ca/Object.svc/GetObject";
     let GET_OBJECT_URL = FALLBACK_GET_OBJECT_URL;
+    let loginResponseKeys: Record<string, string> = {};
     await step("extract_session", async () => {
       const loginParsed = await parseXml(loginRes!.text);
       sessionCookie = extractSessionCookie(loginRes!.setCookie);
       const urls = extractRetsUrlsFromLogin(loginParsed);
+      loginResponseKeys = urls.map;
       SEARCH_URL = urls.searchUrl || FALLBACK_SEARCH_URL;
       GET_OBJECT_URL = urls.getObjectUrl || FALLBACK_GET_OBJECT_URL;
     });
@@ -585,17 +665,65 @@ export async function POST(req: Request) {
     let errors = 0;
     let pagesFetched = 0;
     let searchResFirst200: string | null = null;
+    let metadataResult: { resource?: unknown; propertyClass?: unknown } | null = null;
+
+    const wantMetadata = url.searchParams.get("metadata") === "1";
+    if (wantMetadata && loginResponseKeys.GetMetadata) {
+      const metaUrl = loginResponseKeys.GetMetadata;
+      await step("get_metadata", async () => {
+        const metaParams = new URLSearchParams({
+          Type: "METADATA-RESOURCE",
+          Format: "STANDARD-XML",
+          ID: "0",
+        });
+        const resourceRes = await digestGet(
+          `${metaUrl}?${metaParams.toString()}`,
+          username,
+          password,
+          "application/xml",
+          sessionCookie!,
+          undefined
+        );
+        let resourceParsed: unknown = null;
+        if (resourceRes?.ok && resourceRes.text) {
+          resourceParsed = await parseXml(resourceRes.text);
+        }
+        const classParams = new URLSearchParams({
+          Type: "METADATA-CLASS",
+          Format: "STANDARD-XML",
+          ID: "Property",
+        });
+        const classRes = await digestGet(
+          `${metaUrl}?${classParams.toString()}`,
+          username,
+          password,
+          "application/xml",
+          sessionCookie!,
+          undefined
+        );
+        let classParsed: unknown = null;
+        if (classRes?.ok && classRes.text) {
+          classParsed = await parseXml(classRes.text);
+        }
+        metadataResult = { resource: resourceParsed, propertyClass: classParsed };
+      });
+    }
 
     const perPage = Math.max(1, Math.min(100, Number(url.searchParams.get("perPage") || 100)));
     const searchClass = url.searchParams.get("class") || "Property";
     const fetchDetails =
       url.searchParams.get("fetchDetails") === "1" || url.searchParams.get("fetchDetails") === "true";
     const debugDetails = url.searchParams.get("debugDetails") === "1";
-    // Ontario only: Province=ON. Override with ?province= or env MLS_PROVINCE (empty = no filter).
-    const provinceFilter = url.searchParams.get("province") ?? process.env.MLS_PROVINCE ?? "ON";
-    const dmqlQuery = provinceFilter
-      ? `(ID=*),(Province=${provinceFilter})`
-      : "(ID=*)";
+    // Optional province filter (e.g. ON). Empty = no filter. Some feeds return 20206 with Province=ON.
+    // CREA DDF: (ID=0+) is numeric; (ID=*) is string/wildcard. Override with ?query= to try alternatives.
+    const provinceFilter = url.searchParams.get("province") ?? process.env.MLS_PROVINCE ?? "";
+    const customQuery = url.searchParams.get("query");
+    const dmqlQuery =
+      customQuery != null && customQuery.trim() !== ""
+        ? customQuery.trim()
+        : provinceFilter
+          ? `(ID=0+),(Province=${provinceFilter})`
+          : "(ID=0+)";
 
     const sample: any[] = [];
     let firstPropertyXml: string | null = null;
@@ -854,6 +982,11 @@ export async function POST(req: Request) {
       login: loginRes
         ? { contentType: loginRes.contentType, first200: loginRes.text.slice(0, 200) }
         : undefined,
+      loginResponseKeys: Object.keys(loginResponseKeys).length ? loginResponseKeys : undefined,
+      noRecordsHint:
+        processed === 0 && pagesFetched > 0
+          ? "DDF returned 0 records (20201). Your feed may use a different SearchType/Class or Query. Check loginResponseKeys for URLs. Ask CREA which SearchType, Class, and DMQL Query your destination supports."
+          : undefined,
       search: {
         contentType: "application/xml",
         note: "If rawSample is null, include debug=1 and we will also return first200 of the Search response.",
@@ -877,6 +1010,7 @@ export async function POST(req: Request) {
           ? JSON.stringify(firstRawRecord).slice(0, 4000)
           : undefined,
       detailsDebug: detailsDebug ?? undefined,
+      metadata: metadataResult ?? undefined,
       note:
         skipped === processed && processed > 0
           ? "All records skipped: CREA XML field names may differ. firstRecordKeys shows the actual keys from the first record so we can update the parser."
@@ -940,6 +1074,8 @@ export async function GET() {
         fetchDetails: "1 to fetch full listing per ID via Search(ID=<ddfId>) (per realtypress.ca DDF testing)",
         dryRun: "true/1 to skip DB writes (recommended first run)",
         debug: "1 to include full raw XML sample (otherwise truncated)",
+        metadata: "1 to fetch GetMetadata (resources + Property classes) and include in response",
+        query: "override DMQL query (e.g. (ID=*) or (LastUpdated=2020-01-01+))",
       },
     },
   });

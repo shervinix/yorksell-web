@@ -20,6 +20,64 @@ const PROPERTY_TYPES = [
   { value: "Other", label: "Other" },
 ];
 
+type FeaturedApiListing = {
+  id: string;
+  mlsNumber: string | null;
+  status: string | null;
+  addressLine: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  price: number | null;
+  beds: number | null;
+  baths: number | null;
+  propertyType: string | null;
+  photoUrl: string | null;
+};
+
+type FeaturedListingCard = {
+  id: string;
+  href: string;
+  title: string;
+  price: string;
+  meta: string;
+  location: string;
+  image: string;
+};
+
+const FEATURED_FALLBACK: FeaturedListingCard[] = [
+  {
+    id: "featured-1",
+    href: "/listings/featured-1",
+    title: "Modern Condo • Waterfront",
+    price: "$999,000",
+    meta: "2 Bed • 2 Bath • 1 Parking",
+    location: "Toronto, ON",
+    image:
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80",
+  },
+  {
+    id: "featured-2",
+    href: "/listings/featured-2",
+    title: "Family Home • Ravine Lot",
+    price: "$2,495,000",
+    meta: "4+1 Bed • 4 Bath",
+    location: "North York, ON",
+    image:
+      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
+  },
+  {
+    id: "featured-3",
+    href: "/listings/featured-3",
+    title: "Luxury Townhome • End Unit",
+    price: "$1,399,000",
+    meta: "3 Bed • 3 Bath • 2 Parking",
+    location: "Etobicoke, ON",
+    image:
+      "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1600&q=80",
+  },
+];
+
 function formatPrice(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0)
     return "Contact";
@@ -69,7 +127,7 @@ export default function ListingsSearchPage() {
   const dens = searchParams.getAll("dens");
   const city = searchParams.get("city") ?? "";
   const propertyType = searchParams.get("propertyType") ?? "";
-  const sort = searchParams.get("sort") ?? "updated_desc";
+  const sort = searchParams.get("sort") ?? "price_desc";
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
   const view = (searchParams.get("view") ?? "list") === "map" ? "map" : "list";
 
@@ -77,8 +135,13 @@ export default function ListingsSearchPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [bedBathOpen, setBedBathOpen] = useState(false);
   const bedBathRef = useRef<HTMLDivElement>(null);
+  const [featured, setFeatured] = useState<FeaturedListingCard[]>(FEATURED_FALLBACK);
+  const [featuredFromApi, setFeaturedFromApi] = useState(false);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [featuredError, setFeaturedError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!bedBathOpen) return;
@@ -113,6 +176,77 @@ export default function ListingsSearchPage() {
   }, [q, minPrice, maxPrice, bedsKey, bathsKey, densKey, city, propertyType, sort, page]);
 
   const fetchKey = apiParams.toString();
+
+  // Load featured listings (same as homepage) once on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        setFeaturedLoading(true);
+        setFeaturedError(null);
+
+        const res = await fetch("/api/listings/featured", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to load featured listings (${res.status})`);
+        }
+
+        const data = (await res.json()) as { listings?: unknown };
+        const raw = Array.isArray((data as any)?.listings) ? ((data as any).listings as unknown[]) : [];
+
+        const mapped: FeaturedListingCard[] = raw
+          .filter(Boolean)
+          .map((x) => {
+            const l = x as FeaturedApiListing;
+            const title =
+              (l.addressLine && l.addressLine.trim()) ||
+              (l.propertyType && l.propertyType.trim()) ||
+              (l.mlsNumber && `Listing ${l.mlsNumber}`) ||
+              "Listing";
+            const location = [l.city, l.province].filter(Boolean).join(", ") || "";
+            const meta = formatBedsBaths(l.beds, l.baths);
+            const price = formatPrice(l.price);
+            const image =
+              (l.photoUrl && l.photoUrl.trim()) ||
+              "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80";
+            const slug = (l.mlsNumber && l.mlsNumber.trim()) || l.id;
+            const href = `/listings/${encodeURIComponent(slug)}`;
+            return {
+              id: l.id,
+              href,
+              title,
+              price,
+              meta,
+              location,
+              image,
+            };
+          })
+          .slice(0, 3);
+
+        if (!cancelled && mapped.length > 0) {
+          setFeatured(mapped);
+          setFeaturedFromApi(true);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Failed to load featured listings";
+          setFeaturedError(msg);
+        }
+      } finally {
+        if (!cancelled) setFeaturedLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,18 +312,62 @@ export default function ListingsSearchPage() {
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-14">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            MLS Search
+            Listings
           </h1>
           <p className="mt-2 text-[var(--muted)]">
-            Toronto & GTA. Search by address, city, neighbourhood, or MLS#.
+            Yorksell Real Estate Group & ROYAL LEPAGE REAL ESTATE SERVICES LTD.
           </p>
-          <Link
-            href="/listings/ours"
-            className="mt-3 inline-block text-sm font-medium text-[var(--accent)] hover:underline"
-          >
-            View our listings →
-          </Link>
         </div>
+
+        {/* Featured listings (same as homepage) */}
+        {featured.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-4 text-base font-semibold text-[var(--foreground)]">
+              Featured Listings
+            </h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {featured.map((l) => (
+                <article
+                  key={l.id}
+                  className="group overflow-hidden rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] shadow-[0_4px_24px_rgba(0,0,0,0.2)] transition hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+                >
+                  <Link href={l.href} className="block">
+                    <div className="relative aspect-[4/3] w-full overflow-hidden">
+                      <img
+                        src={l.image}
+                        alt=""
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      />
+                      <div className="absolute right-3 top-3 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+                        {l.price}
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-semibold text-[var(--foreground)]">{l.title}</h3>
+                      {l.meta && (
+                        <p className="mt-1 text-sm text-[var(--muted)]">{l.meta}</p>
+                      )}
+                      {l.location && (
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">{l.location}</p>
+                      )}
+                      <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)]">
+                        View details <span aria-hidden>→</span>
+                      </span>
+                    </div>
+                  </Link>
+                </article>
+              ))}
+            </div>
+            {(featuredLoading || featuredError) && (
+              <p className="mt-3 text-xs text-[var(--muted)]">
+                {featuredLoading
+                  ? "Loading featured listings…"
+                  : featuredError ?? "Featured listings may be temporarily unavailable."}
+              </p>
+            )}
+          </section>
+        )}
 
         {/* Search bar */}
         <form
@@ -220,30 +398,31 @@ export default function ListingsSearchPage() {
           </div>
         </form>
 
-        {/* Filters */}
-        <form
-          method="get"
-          className="mb-8 rounded-2xl border border-white/[0.06] bg-[var(--surface)] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.15)]"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const data = new FormData(form);
-            updateUrl({
-              q: (data.get("q") as string) ?? q,
-              minPrice: (data.get("minPrice") as string) ?? "",
-              maxPrice: (data.get("maxPrice") as string) ?? "",
-              beds: data.getAll("beds") as string[],
-              baths: data.getAll("baths") as string[],
-              dens: data.getAll("dens") as string[],
-              city: (data.get("city") as string) ?? "",
-              propertyType: (data.get("propertyType") as string) ?? "",
-              sort: (data.get("sort") as string) ?? sort,
-              page: 1,
-            });
-          }}
-        >
-          <input type="hidden" name="q" value={q} />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        {/* Filters toggle + panel */}
+        {filtersOpen && (
+          <form
+            method="get"
+            className="mb-8 rounded-2xl border border-white/[0.06] bg-[var(--surface)] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.15)]"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const data = new FormData(form);
+              updateUrl({
+                q: (data.get("q") as string) ?? q,
+                minPrice: (data.get("minPrice") as string) ?? "",
+                maxPrice: (data.get("maxPrice") as string) ?? "",
+                beds: data.getAll("beds") as string[],
+                baths: data.getAll("baths") as string[],
+                dens: data.getAll("dens") as string[],
+                city: (data.get("city") as string) ?? "",
+                propertyType: (data.get("propertyType") as string) ?? "",
+                sort: (data.get("sort") as string) ?? sort,
+                page: 1,
+              });
+            }}
+          >
+            <input type="hidden" name="q" value={q} />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
             <div>
               <label
                 htmlFor="city"
@@ -439,69 +618,95 @@ export default function ListingsSearchPage() {
                 ))}
               </select>
             </div>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <div>
-              <label
-                htmlFor="sort"
-                className="sr-only"
-              >
-                Sort by
-              </label>
-              <select
-                id="sort"
-                name="sort"
-                defaultValue={sort}
-                className="select-arrow rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
-              >
-                <option value="updated_desc">Newest</option>
-                <option value="price_asc">Price: low to high</option>
-                <option value="price_desc">Price: high to low</option>
-              </select>
             </div>
-            <button
-              type="submit"
-              className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
-            >
-              Apply filters
-            </button>
-            <Link
-              href="/listings"
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-white/5"
-            >
-              Clear
-            </Link>
-          </div>
-        </form>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div>
+                <label
+                  htmlFor="sort"
+                  className="sr-only"
+                >
+                  Sort by
+                </label>
+                <select
+                  id="sort"
+                  name="sort"
+                  defaultValue={sort}
+                  className="select-arrow rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
+                >
+                  <option value="price_desc">Price: high to low</option>
+                  <option value="price_asc">Price: low to high</option>
+                  <option value="updated_desc">Newest</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+              >
+                Apply filters
+              </button>
+              <Link
+                href="/listings"
+                className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-white/5"
+              >
+                Clear
+              </Link>
+            </div>
+          </form>
+        )}
 
-        {/* View toggle + count */}
+        {/* View toggle + count + filters button */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-[var(--muted)]">
             {loading ? "Loading…" : `${total} ${total === 1 ? "listing" : "listings"}`}
           </p>
-          <div className="flex rounded-xl border border-white/[0.08] bg-[var(--surface)] p-1">
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => updateUrl({ view: "list" })}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                view === "list"
-                  ? "bg-[var(--accent)] text-white"
-                  : "text-[var(--foreground)] hover:bg-white/5"
-              }`}
+              onClick={() => setFiltersOpen((o) => !o)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-white/5"
+              aria-expanded={filtersOpen}
             >
-              List
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 6H20M6 12H18M10 18H14"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Filters</span>
             </button>
-            <button
-              type="button"
-              onClick={() => updateUrl({ view: "map" })}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                view === "map"
-                  ? "bg-[var(--accent)] text-white"
-                  : "text-[var(--foreground)] hover:bg-white/5"
-              }`}
-            >
-              Map
-            </button>
+            <div className="flex rounded-xl border border-white/[0.08] bg-[var(--surface)] p-1">
+              <button
+                type="button"
+                onClick={() => updateUrl({ view: "list" })}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  view === "list"
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--foreground)] hover:bg-white/5"
+                }`}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => updateUrl({ view: "map" })}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  view === "map"
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--foreground)] hover:bg-white/5"
+                }`}
+              >
+                Map
+              </button>
+            </div>
           </div>
         </div>
 

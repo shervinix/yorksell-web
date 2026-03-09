@@ -2,19 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
+import { isAdmin } from "@/lib/admin";
 
 export const runtime = "nodejs";
 
-function isAdmin(email: string | null | undefined): boolean {
-  const list = process.env.ADMIN_EMAILS;
-  if (!list || !email) return false;
-  const emails = list.split(",").map((e) => e.trim().toLowerCase());
-  return emails.includes(email.toLowerCase());
-}
-
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isAdmin(session.user.email)) {
+  if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

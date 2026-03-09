@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=2600&q=80";
+  "https://unsplash.com/photos/cspdkWwJuoU/download?force=true&w=2600";
 
 export default function SellPage() {
   return (

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
-import { ListingHeroImage } from "../ListingHeroImage";
+import { getListingPhotoUrls } from "@/lib/listing-photos";
+import { ListingPhotoSlideshow } from "../ListingPhotoSlideshow";
 import { SaveListingButton } from "./SaveListingButton";
 
 /** Pick first non-empty string from MLS raw. */
@@ -22,6 +23,23 @@ function pickFirstNum(...vals: unknown[]): number | null {
     if (Number.isFinite(n)) return Math.trunc(n);
   }
   return null;
+}
+
+/** Pick first finite number preserving decimals (for lot dimensions). */
+function pickFirstFloat(...vals: unknown[]): number | null {
+  for (const v of vals) {
+    if (v == null) continue;
+    const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.-]/g, ""));
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+/** Format dimension for display: keep decimals, trim trailing zeros. */
+function formatDimension(n: number): string {
+  if (Number.isInteger(n)) return String(n);
+  const s = n.toFixed(2).replace(/\.?0+$/, "");
+  return s;
 }
 
 interface PageProps {
@@ -77,16 +95,13 @@ export default async function ListingPage({ params }: PageProps) {
     isSaved = !!saved;
   }
 
-  const imageSrc =
+  const fallbackImageSrc =
     (listing.photoUrl && listing.photoUrl.trim()) ||
     (listing.mlsNumber ? `/api/listings/photo?mlsNumber=${encodeURIComponent(listing.mlsNumber)}` : null) ||
-    (listing.ddfId ? `/api/listings/photo?ddfId=${encodeURIComponent(listing.ddfId)}` : null);
-  // #region agent log
-  const usedPhotoUrl = Boolean(listing.photoUrl && listing.photoUrl.trim());
-  const payload = { location: "listings/[id]/page.tsx", message: "Listing image source", data: { listingId: id, hasPhotoUrl: usedPhotoUrl, hasMlsNumber: Boolean(listing.mlsNumber), hasDdfId: Boolean(listing.ddfId), imageSrcType: usedPhotoUrl ? "photoUrl" : imageSrc?.startsWith("/api/") ? "proxy" : "empty" }, hypothesisId: "H5" };
-  try { require("fs").appendFileSync(require("path").join(process.cwd(), ".cursor", "debug.log"), JSON.stringify(payload) + "\n"); } catch {}
-  fetch("http://127.0.0.1:7242/ingest/989fcf82-5e2c-43b6-af60-a19ff17876f2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {});
-  // #endregion
+    (listing.ddfId ? `/api/listings/photo?ddfId=${encodeURIComponent(listing.ddfId)}` : null) ||
+    "";
+  const raw = (listing.raw ?? {}) as Record<string, unknown>;
+  const photoUrls = getListingPhotoUrls(raw);
   const price = listing.price
     ? new Intl.NumberFormat("en-CA", {
         style: "currency",
@@ -96,7 +111,6 @@ export default async function ListingPage({ params }: PageProps) {
     : "Price on request";
 
   // Optional MLS fields from raw payload (CREA DDF / RETS style)
-  const raw = (listing.raw ?? {}) as Record<string, unknown>;
   const building = raw.Building as Record<string, unknown> | undefined;
   const land = raw.Land as Record<string, unknown> | undefined;
   const property = raw.Property as Record<string, unknown> | undefined;
@@ -108,8 +122,73 @@ export default async function ListingPage({ params }: PageProps) {
     property?.PublicRemarks,
     property?.Remarks
   );
-  const sqft = listing.sqft ?? pickFirstNum(building?.SquareFeet, raw.SquareFeet, raw.LivingArea, building?.LivingArea);
-  const lotSqft = pickFirstNum(land?.SizeTotal, raw.LotSize, land?.SizeFrontage, raw.LotSquareFeet);
+  const sqft =
+    listing.sqft ??
+    pickFirstNum(
+      building?.SizeInterior,
+      building?.SizeTotal,
+      building?.BuildingAreaTotal,
+      building?.TotalFloorArea,
+      building?.SquareFeet,
+      building?.LivingArea,
+      raw.SizeInterior,
+      raw.SizeTotal,
+      raw.BuildingAreaTotal,
+      raw.TotalFloorArea,
+      raw.SquareFeet,
+      raw.LivingArea
+    );
+
+  // Lot size: prefer explicit frontage/depth in feet, fall back to SizeTotalText when needed.
+  const lotSizeText = pickFirstStr(
+    land?.SizeTotalText,
+    raw.SizeTotalText,
+    land?.SizeIrregular,
+    raw.SizeIrregular
+  );
+
+  let lotWidth =
+    pickFirstFloat(
+      land?.SizeFrontage,
+      raw.SizeFrontage,
+      land?.Frontage,
+      raw.Frontage
+    ) ?? null;
+  let lotDepth =
+    pickFirstFloat(
+      land?.SizeDepth,
+      raw.SizeDepth,
+      land?.Depth,
+      raw.Depth
+    ) ?? null;
+
+  // Try to parse dimensions like "30.00 ft X 120.00 ft" from text when numbers are missing (keep decimals).
+  if ((!lotWidth || !lotDepth) && lotSizeText) {
+    const match = lotSizeText.match(/(\d+(?:\.\d+)?)\s*ft.*?[x×]\s*(\d+(?:\.\d+)?)\s*ft/i);
+    if (match) {
+      const w = Number(match[1]);
+      const d = Number(match[2]);
+      if (!lotWidth && Number.isFinite(w)) lotWidth = w;
+      if (!lotDepth && Number.isFinite(d)) lotDepth = d;
+    }
+  }
+
+  // Some feeds (e.g. CREA DDF) store frontage/depth in tenths of a foot; convert when values look like that (e.g. 499 → 49.9 ft).
+  if (
+    lotWidth != null &&
+    lotDepth != null &&
+    lotWidth >= 400 &&
+    lotDepth >= 400
+  ) {
+    lotWidth = lotWidth / 10;
+    lotDepth = lotDepth / 10;
+  }
+
+  const lotSize =
+    lotWidth != null && lotDepth != null
+      ? `${formatDimension(lotWidth)} x ${formatDimension(lotDepth)} ft`
+      : lotSizeText || null;
+
   const yearBuilt = listing.yearBuilt ?? pickFirstNum(building?.ConstructedDate, raw.YearBuilt, raw.ConstructedDate);
   const postalCode = listing.postalCode?.trim() || null;
   const status = listing.status?.trim() || null;
@@ -118,7 +197,11 @@ export default async function ListingPage({ params }: PageProps) {
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Hero extends under the header (same as home page) */}
       <section className="relative -mt-20 h-[65vh] w-full min-h-[320px] pt-20 sm:-mt-[5.5rem] sm:pt-[5.5rem]">
-        <ListingHeroImage src={imageSrc || ""} />
+        <ListingPhotoSlideshow
+          photos={photoUrls}
+          fallbackSrc={fallbackImageSrc}
+          alt={listing.addressLine || listing.mlsNumber || "Listing"}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-6xl px-4 pb-10 sm:px-6">
           <h1 className="text-3xl font-semibold text-white md:text-4xl lg:text-5xl">
@@ -144,7 +227,7 @@ export default async function ListingPage({ params }: PageProps) {
                 <Detail label="Status" value={status} />
                 <Detail label="Postal code" value={postalCode} />
                 <Detail label="Sq. ft." value={sqft != null ? sqft.toLocaleString() : null} />
-                <Detail label="Lot (sq. ft.)" value={lotSqft != null ? lotSqft.toLocaleString() : null} />
+                <Detail label="Lot size" value={lotSize} />
                 <Detail label="Year built" value={yearBuilt} />
               </div>
             </div>

@@ -1,20 +1,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
+import { prisma } from "@/server/db/prisma";
+import { isAdmin } from "@/lib/admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-function isAdmin(email: string | null | undefined): boolean {
-  const list = process.env.ADMIN_EMAILS;
-  if (!list || !email) return false;
-  const emails = list.split(",").map((e) => e.trim().toLowerCase());
-  return emails.includes(email.toLowerCase());
-}
-
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isAdmin(session.user.email)) {
+  if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -30,9 +25,10 @@ export async function POST(req: Request) {
   const limit = Math.min(Math.max(Number(body?.limit) || 200, 1), 5000);
   const pages = Math.min(Math.max(Number(body?.pages) || 10, 1), 50);
   const dryRun = body?.dryRun === true || body?.dryRun === "true";
+  const fetchDetails = body?.fetchDetails === true || body?.fetchDetails === "true";
 
   const base = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL ?? "http://localhost:3000";
-  const url = `${base.startsWith("http") ? base : `https://${base}`}/api/mls/sync?limit=${limit}&pages=${pages}${dryRun ? "&dryRun=1" : ""}`;
+  const url = `${base.startsWith("http") ? base : `https://${base}`}/api/mls/sync?limit=${limit}&pages=${pages}${dryRun ? "&dryRun=1" : ""}${fetchDetails ? "&fetchDetails=1" : ""}`;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (key) headers["x-mls-sync-key"] = key;

@@ -2,13 +2,8 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import Link from "next/link";
-
-function isAdmin(email: string | null | undefined): boolean {
-  const list = process.env.ADMIN_EMAILS;
-  if (!list || !email) return false;
-  const emails = list.split(",").map((e) => e.trim().toLowerCase());
-  return emails.includes(email.toLowerCase());
-}
+import { isAdmin } from "@/lib/admin";
+import { prisma } from "@/server/db/prisma";
 
 export default async function AdminLayout({
   children,
@@ -19,7 +14,7 @@ export default async function AdminLayout({
   if (!session) {
     redirect("/login?callbackUrl=/admin");
   }
-  if (!isAdmin(session.user?.email)) {
+  if (!(await isAdmin(session.user?.email, prisma))) {
     redirect("/members");
   }
 
@@ -33,6 +28,18 @@ export default async function AdminLayout({
             </Link>
             <Link href="/admin/clients" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
               Clients
+            </Link>
+            <Link href="/admin/featured" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
+              Featured listings
+            </Link>
+            <Link href="/admin/blog" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
+              Blog
+            </Link>
+            <Link href="/admin/footprint" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
+              Footprint
+            </Link>
+            <Link href="/admin/admins" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
+              Admins
             </Link>
           </div>
           <div className="flex items-center gap-4">

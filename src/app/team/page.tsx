@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2600&q=80";
+  "https://unsplash.com/photos/eHD8Y1Znfpk/download?force=true&w=2600";
 
 export default function TeamPage() {
   return (
@@ -41,7 +41,7 @@ export default function TeamPage() {
 
       <section className="border-t border-white/[0.06] bg-[var(--surface)]">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {teamMembers.map((member) => (
               <Link
                 key={member.slug}
@@ -53,7 +53,7 @@ export default function TeamPage() {
                     src={member.image}
                     alt=""
                     className="h-full w-full object-cover transition group-hover:scale-105"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
                 </div>

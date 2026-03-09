@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type SyncState = {
   lastRunAt: string | null;
@@ -11,6 +11,21 @@ type SyncState = {
   errorCount: number | null;
 };
 
+type Schedule = {
+  enabled: boolean;
+  time: string;
+  timezone: string;
+  lastScheduledRunAt?: string | null;
+};
+
+const TIMEZONES = [
+  { value: "America/Toronto", label: "Eastern (Toronto)" },
+  { value: "America/Winnipeg", label: "Central (Winnipeg)" },
+  { value: "America/Edmonton", label: "Mountain (Edmonton)" },
+  { value: "America/Vancouver", label: "Pacific (Vancouver)" },
+  { value: "UTC", label: "UTC" },
+];
+
 export default function AdminPage() {
   const [state, setState] = useState<SyncState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +34,12 @@ export default function AdminPage() {
   const [limit, setLimit] = useState("200");
   const [pages, setPages] = useState("10");
   const [dryRun, setDryRun] = useState(false);
+  const [fetchDetails, setFetchDetails] = useState(true);
+
+  const [schedule, setSchedule] = useState<Schedule | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
   const fetchStatus = async () => {
     try {
@@ -31,9 +52,24 @@ export default function AdminPage() {
     }
   };
 
+  const fetchSchedule = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/mls-sync-schedule", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSchedule(data);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStatus();
   }, []);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
 
   async function runSync() {
     setTriggering(true);
@@ -46,6 +82,7 @@ export default function AdminPage() {
           limit: Number(limit) || 200,
           pages: Number(pages) || 10,
           dryRun,
+          fetchDetails,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -53,6 +90,35 @@ export default function AdminPage() {
       await fetchStatus();
     } finally {
       setTriggering(false);
+    }
+  }
+
+  async function saveSchedule() {
+    if (schedule == null) return;
+    setScheduleSaving(true);
+    setScheduleMessage(null);
+    try {
+      const res = await fetch("/api/admin/mls-sync-schedule", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: schedule.enabled,
+          time: schedule.time,
+          timezone: schedule.timezone,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to save");
+      }
+      setScheduleMessage({ type: "ok", text: "Daily sync schedule saved." });
+    } catch (e) {
+      setScheduleMessage({
+        type: "error",
+        text: e instanceof Error ? e.message : "Failed to save",
+      });
+    } finally {
+      setScheduleSaving(false);
     }
   }
 
@@ -152,6 +218,17 @@ export default function AdminPage() {
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
+              checked={fetchDetails}
+              onChange={(e) => setFetchDetails(e.target.checked)}
+              className="rounded border-zinc-300"
+            />
+            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              Fetch full details (address, price, photos — slower, recommended)
+            </span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
               checked={dryRun}
               onChange={(e) => setDryRun(e.target.checked)}
               className="rounded border-zinc-300"
@@ -174,6 +251,96 @@ export default function AdminPage() {
             {JSON.stringify(triggerResult, null, 2)}
           </pre>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+          Daily sync
+        </h2>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          Run DDF sync automatically once per day at the set time (requires Vercel Cron and <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">CRON_SECRET</code> in production).
+        </p>
+        {scheduleLoading ? (
+          <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
+        ) : schedule ? (
+          <div className="mt-4 space-y-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={schedule.enabled}
+                onChange={(e) =>
+                  setSchedule((s) => (s ? { ...s, enabled: e.target.checked } : s))
+                }
+                className="rounded border-zinc-300"
+              />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                Enable daily sync
+              </span>
+            </label>
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label htmlFor="schedule-time" className="block text-xs text-zinc-500">
+                  Time
+                </label>
+                <input
+                  id="schedule-time"
+                  type="time"
+                  value={schedule.time}
+                  onChange={(e) =>
+                    setSchedule((s) => (s ? { ...s, time: e.target.value } : s))
+                  }
+                  className="mt-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                />
+              </div>
+              <div>
+                <label htmlFor="schedule-tz" className="block text-xs text-zinc-500">
+                  Timezone
+                </label>
+                <select
+                  id="schedule-tz"
+                  value={schedule.timezone}
+                  onChange={(e) =>
+                    setSchedule((s) => (s ? { ...s, timezone: e.target.value } : s))
+                  }
+                  className="mt-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                >
+                  {TIMEZONES.map((tz) => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {schedule.lastScheduledRunAt && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Last auto-run:{" "}
+                {new Date(schedule.lastScheduledRunAt).toLocaleString()}
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={saveSchedule}
+                disabled={scheduleSaving}
+                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+              >
+                {scheduleSaving ? "Saving…" : "Save schedule"}
+              </button>
+              {scheduleMessage && (
+                <span
+                  className={
+                    scheduleMessage.type === "ok"
+                      ? "text-sm text-green-600 dark:text-green-400"
+                      : "text-sm text-red-600 dark:text-red-400"
+                  }
+                >
+                  {scheduleMessage.text}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

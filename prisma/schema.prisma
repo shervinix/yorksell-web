@@ -149,6 +149,12 @@ model DdfSyncState {
   updatedAt   DateTime  @updatedAt
 }
 
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
 model Client {
   id                        String   @id @default(cuid())
   userId                    String   @unique
@@ -204,4 +210,19 @@ model ClientUpdate {
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+}
+
+model BlogPost {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  excerpt       String
+  body          String
+  coverImageUrl String?
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([publishedAt])
 }

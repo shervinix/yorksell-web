@@ -40,7 +40,7 @@ export async function GET(req: Request) {
   const neLng = searchParams.get("neLng");
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
   const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 24), 1), 100);
-  const sort = searchParams.get("sort") ?? "updated_desc";
+  const sort = searchParams.get("sort") ?? "price_desc";
 
   const where: Prisma.ListingWhereInput = {};
 
@@ -138,18 +138,30 @@ export async function GET(req: Request) {
     where.lng = { gte: minLng, lte: maxLng };
   }
 
+  // Default: highest to lowest price; listings with no price (or contact-for-price) go last
   const orderBy: Prisma.ListingOrderByWithRelationInput[] =
     sort === "price_asc"
-      ? [{ price: "asc" }, { updatedAt: "desc" }]
+      ? [{ price: { sort: "asc", nulls: "last" } }, { updatedAt: "desc" }]
       : sort === "price_desc"
-        ? [{ price: "desc" }, { updatedAt: "desc" }]
+        ? [{ price: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }]
         : [{ updatedAt: "desc" }];
+
+  // Only include listings with at least some real data (exclude empty rows from sync without fetchDetails)
+  const hasRealData: Prisma.ListingWhereInput = {
+    OR: [
+      { mlsNumber: { not: null } },
+      { addressLine: { not: null } },
+      { city: { not: null } },
+      { price: { not: null } },
+    ],
+  };
+  const finalWhere: Prisma.ListingWhereInput = { AND: [hasRealData, where] };
 
   const skip = (page - 1) * limit;
 
   const [rows, total] = await Promise.all([
     prisma.listing.findMany({
-      where,
+      where: finalWhere,
       orderBy,
       skip,
       take: limit,
@@ -170,7 +182,7 @@ export async function GET(req: Request) {
         lng: true,
       },
     }),
-    prisma.listing.count({ where }),
+    prisma.listing.count({ where: finalWhere }),
   ]);
 
   const listings: ListingListItem[] = rows.map((r) => {

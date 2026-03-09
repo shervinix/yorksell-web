@@ -7,10 +7,10 @@ function ListingsFallback() {
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-14">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            MLS Search
+            Listings
           </h1>
           <p className="mt-2 text-[var(--muted)]">
-            Toronto & GTA. Loading…
+            Yorksell Real Estate Group & ROYAL LEPAGE REAL ESTATE SERVICES LTD.
           </p>
         </div>
         <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-white/[0.06] bg-[var(--surface)]">
@@ -30,7 +30,7 @@ export default function ListingsPage() {
 }
 
 export const metadata = {
-  title: "Browse Listings | Toronto & GTA | Yorksell",
+  title: "Listings | Yorksell Real Estate Group",
   description:
-    "Browse MLS listings in Toronto and the GTA. Search by address, city, neighbourhood, or MLS#. Luxury real estate with clear advice and tight execution.",
+    "Listings by Yorksell Real Estate Group & ROYAL LEPAGE REAL ESTATE SERVICES LTD. Toronto & GTA. Search by address, city, neighbourhood, or MLS#.",
 };

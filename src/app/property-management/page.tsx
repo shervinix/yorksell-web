@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   },
 };
 
-const HERO_IMAGE = "https://picsum.photos/seed/propertymgmt/2600/800";
+const HERO_IMAGE =
+  "https://unsplash.com/photos/EL8jKaZnU0A/download?force=true&w=2600";
 
 export default function PropertyManagementPage() {
   return (

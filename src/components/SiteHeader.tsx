@@ -139,9 +139,6 @@ export default function SiteHeader() {
               <Link href="/listings" className={linkClass}>
                 Listings
               </Link>
-              <Link href="/listings/ours" className={linkClass}>
-                Our Listings
-              </Link>
               <div className="relative" ref={servicesRef}>
                 <button
                   type="button"
@@ -204,6 +201,9 @@ export default function SiteHeader() {
               </Link>
               <Link href="/footprint" className={linkClass}>
                 Footprint
+              </Link>
+              <Link href="/blog" className={linkClass}>
+                Blog
               </Link>
             </nav>
 
@@ -376,7 +376,6 @@ export default function SiteHeader() {
           <div className="mt-6 grid gap-2">
             <MobileNavLink href="/" onClick={() => setMobileOpen(false)}>Home</MobileNavLink>
             <MobileNavLink href="/listings" onClick={() => setMobileOpen(false)}>Listings</MobileNavLink>
-            <MobileNavLink href="/listings/ours" onClick={() => setMobileOpen(false)}>Our Listings</MobileNavLink>
             <div className="px-2 py-1.5">
               <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Services</p>
               <div className="mt-2 grid gap-2">
@@ -388,6 +387,7 @@ export default function SiteHeader() {
             <MobileNavLink href="/about" onClick={() => setMobileOpen(false)}>About</MobileNavLink>
             <MobileNavLink href="/team" onClick={() => setMobileOpen(false)}>Team</MobileNavLink>
             <MobileNavLink href="/footprint" onClick={() => setMobileOpen(false)}>Footprint</MobileNavLink>
+            <MobileNavLink href="/blog" onClick={() => setMobileOpen(false)}>Blog</MobileNavLink>
           </div>
           {status !== "loading" && (
             <div className="mt-4 border-t border-white/[0.06] pt-4">

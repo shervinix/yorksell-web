@@ -36,36 +36,50 @@ export async function GET(req: Request) {
   // Heuristic: treat as MLS number if it contains a digit and is relatively short
   const looksLikeMls = /\d/.test(qRaw) && qRaw.replace(/\s+/g, "").length <= 12;
 
+  const hasRealData = {
+    OR: [
+      { mlsNumber: { not: null } },
+      { addressLine: { not: null } },
+      { city: { not: null } },
+      { price: { not: null } },
+    ],
+  };
+
   const rows = await prisma.listing.findMany({
     where: {
-      OR: [
-        ...(looksLikeMls
-          ? [
-              {
-                mlsNumber: {
-                  contains: qRaw.replace(/\s+/g, ""),
-                  mode: "insensitive" as const,
-                },
+      AND: [
+        hasRealData,
+        {
+          OR: [
+            ...(looksLikeMls
+              ? [
+                  {
+                    mlsNumber: {
+                      contains: qRaw.replace(/\s+/g, ""),
+                      mode: "insensitive" as const,
+                    },
+                  },
+                ]
+              : []),
+            {
+              addressLine: {
+                contains: qRaw,
+                mode: "insensitive" as const,
               },
-            ]
-          : []),
-        {
-          addressLine: {
-            contains: qRaw,
-            mode: "insensitive" as const,
-          },
-        },
-        {
-          city: {
-            contains: qRaw,
-            mode: "insensitive" as const,
-          },
-        },
-        {
-          postalCode: {
-            contains: qRaw.replace(/\s+/g, ""),
-            mode: "insensitive" as const,
-          },
+            },
+            {
+              city: {
+                contains: qRaw,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              postalCode: {
+                contains: qRaw.replace(/\s+/g, ""),
+                mode: "insensitive" as const,
+              },
+            },
+          ],
         },
       ],
     },

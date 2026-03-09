@@ -1,9 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import {
-  FOOTPRINT_POINTS,
-  getFootprintStats,
-} from "./data";
+import { prisma } from "@/server/db/prisma";
+import { getFootprintData, getResolvedFootprintStats } from "@/lib/footprint";
 import FootprintMapClient from "./FootprintMapClient";
 
 export const metadata: Metadata = {
@@ -17,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2600&q=80";
+  "https://unsplash.com/photos/UKu0b_VD5Jo/download?force=true&w=2600";
 
 function formatVolume(value: number) {
   if (value >= 1_000_000) {
@@ -35,8 +33,9 @@ function formatVolume(value: number) {
   }).format(value);
 }
 
-export default function FootprintPage() {
-  const stats = getFootprintStats(FOOTPRINT_POINTS);
+export default async function FootprintPage() {
+  const data = await getFootprintData(prisma);
+  const stats = getResolvedFootprintStats(data);
 
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -82,7 +81,7 @@ export default function FootprintPage() {
               </span>
             </div>
           </div>
-          <FootprintMapClient points={FOOTPRINT_POINTS} showFitBounds />
+          <FootprintMapClient points={data.points} showFitBounds />
         </div>
       </section>
 
