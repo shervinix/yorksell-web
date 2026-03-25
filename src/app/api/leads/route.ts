@@ -2,44 +2,33 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { leadPostSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
-const SOURCES = ["listing_contact", "contact_page", "home_cta", "buy_page", "sell_page", "property_management_page", "newsletter", "join_page"] as const;
-
 export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id ? (session.user.id as string) : null;
+
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.publicWrite, userId);
+  if (rl) return rl;
+
+  const parsed = await parseJsonBody(req, leadPostSchema);
+  if (!parsed.ok) return parsed.response;
+
+  const body = parsed.data;
+  const email = body.email.toLowerCase();
+  const name = body.name?.trim() ? body.name.trim() : null;
+  const phone = body.phone?.trim() ? body.phone.trim() : null;
+  const message = body.message?.trim() ? body.message.trim() : null;
+  const source = body.source ?? "contact_page";
+  const listingIdRaw = body.listingId ?? body.listing_id;
+  const mlsNumberRaw = body.mlsNumber ?? body.mls_number;
+  const metadata = body.metadata ?? null;
+
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id ? (session.user.id as string) : null;
-    const body = await req.json().catch(() => ({}));
-    const emailRaw = typeof body?.email === "string" ? body.email.trim() : "";
-    const email = emailRaw.toLowerCase();
-    const name = typeof body?.name === "string" ? body.name.trim() || null : null;
-    const phone = typeof body?.phone === "string" ? body.phone.trim() || null : null;
-    const message = typeof body?.message === "string" ? body.message.trim() || null : null;
-    const source = typeof body?.source === "string" && SOURCES.includes(body.source as (typeof SOURCES)[number])
-      ? (body.source as (typeof SOURCES)[number])
-      : "contact_page";
-    const listingIdRaw = body?.listingId ?? body?.listing_id;
-    const mlsNumberRaw = body?.mlsNumber ?? body?.mls_number;
-    const metadata =
-      body?.metadata && typeof body.metadata === "object" ? body.metadata : null;
-
-    if (!email) {
-      return NextResponse.json(
-        { error: "Email is required." },
-        { status: 400 }
-      );
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: "Please provide a valid email address." },
-        { status: 400 }
-      );
-    }
-
     let listingId: string | null = null;
     if (typeof listingIdRaw === "string" && listingIdRaw.trim()) {
       const found = await prisma.listing.findUnique({

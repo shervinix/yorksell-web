@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import { isAdmin } from "@/lib/admin";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { adminNotePostSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
@@ -11,6 +14,9 @@ export async function POST(
   { params }: { params: Promise<{ clientId: string }> }
 ) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -24,14 +30,12 @@ export async function POST(
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const content = typeof body.content === "string" ? body.content.trim() : "";
+  const parsed = await parseJsonBody(req, adminNotePostSchema);
+  if (!parsed.ok) return parsed.response;
 
+  const content = parsed.data.content.trim();
   if (!content) {
-    return NextResponse.json(
-      { error: "content is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "content is required" }, { status: 400 });
   }
 
   const note = await prisma.clientNote.create({

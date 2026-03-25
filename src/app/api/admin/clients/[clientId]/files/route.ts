@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import { isAdmin } from "@/lib/admin";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { adminFilePostSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
@@ -11,6 +14,9 @@ export async function POST(
   { params }: { params: Promise<{ clientId: string }> }
 ) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -24,19 +30,13 @@ export async function POST(
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const url = typeof body.url === "string" ? body.url.trim() : "";
+  const parsed = await parseJsonBody(req, adminFilePostSchema);
+  if (!parsed.ok) return parsed.response;
 
-  if (!name || !url) {
-    return NextResponse.json(
-      { error: "name and url are required" },
-      { status: 400 }
-    );
-  }
+  const { name, url } = parsed.data;
 
   const file = await prisma.clientFile.create({
-    data: { clientId, name, url },
+    data: { clientId, name: name.trim(), url: url.trim() },
   });
 
   return NextResponse.json({

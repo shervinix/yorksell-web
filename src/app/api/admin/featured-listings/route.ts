@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { isAdmin } from "@/lib/admin";
+import { defaultFeaturedMlsNumbers } from "@/lib/featured-defaults";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { adminFeaturedPutSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
 const FEATURED_SETTING_KEY = "featured_mls_numbers";
-
-const DEFAULT_MLS_NUMBERS = ["C12677558", "N12855168", "C12733910"];
 
 function parseMlsList(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -19,8 +21,11 @@ function parseMlsList(value: unknown): string[] {
   return [];
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -30,34 +35,24 @@ export async function GET() {
   });
 
   const mlsNumbers =
-    row?.value != null
-      ? parseMlsList(row.value)
-      : [...DEFAULT_MLS_NUMBERS];
+    row?.value != null ? parseMlsList(row.value) : [...defaultFeaturedMlsNumbers()];
 
   return NextResponse.json({ mlsNumbers });
 }
 
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
+  const parsed = await parseJsonBody(req, adminFeaturedPutSchema);
+  if (!parsed.ok) return parsed.response;
 
-  const mlsNumbers = parseMlsList(
-    typeof body === "object" && body !== null && "mlsNumbers" in body
-      ? (body as { mlsNumbers: unknown }).mlsNumbers
-      : body
-  );
+  const mlsNumbers = parsed.data.mlsNumbers;
 
   await prisma.siteSetting.upsert({
     where: { key: FEATURED_SETTING_KEY },

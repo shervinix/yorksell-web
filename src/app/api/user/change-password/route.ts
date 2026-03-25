@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import bcrypt from "bcrypt";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { changePasswordSchema } from "@/server/validation/schemas";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -10,25 +13,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.userSession, session.user.id as string);
+  if (rl) return rl;
+
+  const parsed = await parseJsonBody(req, changePasswordSchema);
+  if (!parsed.ok) return parsed.response;
+
+  const { currentPassword, newPassword } = parsed.data;
+
   try {
-    const body = await req.json();
-    const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
-    const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";
-
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json(
-        { error: "Current password and new password are required." },
-        { status: 400 }
-      );
-    }
-
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "New password must be at least 8 characters." },
-        { status: 400 }
-      );
-    }
-
     const user = await prisma.user.findUnique({
       where: { id: session.user.id as string },
       select: { passwordHash: true },

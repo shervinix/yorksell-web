@@ -4,6 +4,9 @@ import { authOptions } from "@/server/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/server/db/prisma";
 import { ADMIN_EMAILS_KEY } from "@/lib/admin";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { adminAdminsPutSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
@@ -14,8 +17,11 @@ function parseEmailList(value: unknown): string[] {
     .filter(Boolean);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -35,22 +41,17 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, adminAdminsPutSchema);
+  if (!parsed.ok) return parsed.response;
 
-  const additionalAdmins = Array.isArray(body?.additionalAdmins)
-    ? (body as { additionalAdmins: unknown[] }).additionalAdmins
-        .map((e) => (typeof e === "string" ? e.trim().toLowerCase() : ""))
-        .filter(Boolean)
-    : [];
+  const additionalAdmins = parsed.data.additionalAdmins.map((e) => e.trim().toLowerCase());
 
   await prisma.siteSetting.upsert({
     where: { key: ADMIN_EMAILS_KEY },

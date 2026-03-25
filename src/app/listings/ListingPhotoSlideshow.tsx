@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { isHdPhotoUrl } from "@/lib/listing-photos";
 
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80";
@@ -17,7 +18,16 @@ export function ListingPhotoSlideshow({ photos, fallbackSrc, alt = "" }: Listing
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState<Set<number>>(new Set());
 
-  const urls = photos.length > 0 ? photos : fallbackSrc ? [fallbackSrc] : [PLACEHOLDER];
+  const uniquePhotos = photos.filter((u, i) => photos.indexOf(u) === i);
+  // Fallback: only proxy (large-first) or URLs that pass strict HD heuristics — never mixed low-res.
+  const fallbackTrimmed = fallbackSrc?.trim() ?? "";
+  const fallbackOk =
+    fallbackTrimmed &&
+    (fallbackTrimmed.startsWith("/api/listings/photo") || isHdPhotoUrl(fallbackTrimmed))
+      ? fallbackTrimmed
+      : "";
+  const urls =
+    uniquePhotos.length > 0 ? uniquePhotos : fallbackOk ? [fallbackOk] : [PLACEHOLDER];
   const effectiveUrls = urls.map((u) => (u && u.trim() ? u : PLACEHOLDER));
   const count = effectiveUrls.length;
   const isSingle = count <= 1;

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
+import { defaultFeaturedMlsNumbers } from "@/lib/featured-defaults";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
 
 const FEATURED_SETTING_KEY = "featured_mls_numbers";
-const DEFAULT_MLS_NUMBERS = ["C12677558", "N12855168", "C12733910"];
 
 function getFeaturedMlsNumbers(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -12,15 +13,20 @@ function getFeaturedMlsNumbers(value: unknown): string[] {
       .map((v) => (typeof v === "string" ? v.trim() : ""))
       .filter(Boolean);
   }
-  return DEFAULT_MLS_NUMBERS;
+  return defaultFeaturedMlsNumbers();
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.publicRead);
+  if (rl) return rl;
+
   try {
     const setting = await prisma.siteSetting.findUnique({
       where: { key: FEATURED_SETTING_KEY },
     });
-    const featuredMlsNumbers = getFeaturedMlsNumbers(setting?.value ?? DEFAULT_MLS_NUMBERS);
+    const featuredMlsNumbers = getFeaturedMlsNumbers(
+      setting?.value ?? defaultFeaturedMlsNumbers()
+    );
     if (featuredMlsNumbers.length === 0) {
       return NextResponse.json({ listings: [] }, { status: 200 });
     }

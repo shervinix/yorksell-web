@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { mlsSyncSchedulePutSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
@@ -32,8 +35,11 @@ function parseSchedule(value: unknown): MlsSyncSchedule {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -48,31 +54,27 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, mlsSyncSchedulePutSchema);
+  if (!parsed.ok) return parsed.response;
+
+  const body = parsed.data;
 
   const row = await prisma.siteSetting.findUnique({
     where: { key: SCHEDULE_KEY },
   });
   const current = parseSchedule(row?.value ?? null);
 
-  const enabled = typeof body === "object" && body !== null && "enabled" in body
-    ? Boolean((body as Record<string, unknown>).enabled)
-    : current.enabled;
-  const time = typeof body === "object" && body !== null && "time" in body
-    ? String((body as Record<string, unknown>).time)
-    : current.time;
-  const timezone = typeof body === "object" && body !== null && "timezone" in body
-    ? String((body as Record<string, unknown>).timezone).trim() || current.timezone
-    : current.timezone;
+  const enabled = body.enabled !== undefined ? body.enabled : current.enabled;
+  const time = body.time !== undefined ? body.time : current.time;
+  const timezone =
+    body.timezone !== undefined ? body.timezone.trim() || current.timezone : current.timezone;
 
   const timeMatch = time.match(/^(\d{1,2}):(\d{2})$/);
   const hour = timeMatch ? Math.min(23, Math.max(0, parseInt(timeMatch[1]!, 10))) : 4;

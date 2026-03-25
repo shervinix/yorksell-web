@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import { isAdmin } from "@/lib/admin";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { adminClientPatchSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -59,6 +66,9 @@ export async function PATCH(
   { params }: { params: Promise<{ clientId: string }> }
 ) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -72,19 +82,25 @@ export async function PATCH(
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  const body = await req.json().catch(() => ({}));
+  const parsed = await parseJsonBody(req, adminClientPatchSchema);
+  if (!parsed.ok) return parsed.response;
 
-  const data: Record<string, unknown> = {};
-  if (typeof body.buyerClient === "boolean") data.buyerClient = body.buyerClient;
-  if (typeof body.sellerClient === "boolean")
-    data.sellerClient = body.sellerClient;
-  if (typeof body.propertyManagementClient === "boolean")
+  const body = parsed.data;
+  const data: Prisma.ClientUncheckedUpdateInput = {};
+  if (body.buyerClient !== undefined) data.buyerClient = body.buyerClient;
+  if (body.sellerClient !== undefined) data.sellerClient = body.sellerClient;
+  if (body.propertyManagementClient !== undefined)
     data.propertyManagementClient = body.propertyManagementClient;
-  if (typeof body.showFiles === "boolean") data.showFiles = body.showFiles;
-  if (typeof body.showStats === "boolean") data.showStats = body.showStats;
-  if (typeof body.showNotes === "boolean") data.showNotes = body.showNotes;
-  if (typeof body.showUpdates === "boolean") data.showUpdates = body.showUpdates;
-  if (body.statsJson !== undefined) data.statsJson = body.statsJson;
+  if (body.showFiles !== undefined) data.showFiles = body.showFiles;
+  if (body.showStats !== undefined) data.showStats = body.showStats;
+  if (body.showNotes !== undefined) data.showNotes = body.showNotes;
+  if (body.showUpdates !== undefined) data.showUpdates = body.showUpdates;
+  if (body.statsJson !== undefined) {
+    data.statsJson =
+      body.statsJson === null
+        ? Prisma.JsonNull
+        : (body.statsJson as Prisma.InputJsonValue);
+  }
 
   const client = await prisma.client.update({
     where: { id: clientId },

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma, PrismaClient } from "@prisma/client";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { timingSafeStringEqual } from "@/server/secure-compare";
 
 // NOTE:
 // This route is designed for CREA DDF/RETS endpoints which use DIGEST auth.
@@ -329,11 +331,11 @@ function isAuthorized(req: Request) {
   // For dev convenience, allow without a key.
   if (process.env.NODE_ENV !== "production") return true;
 
-  const expected = process.env.MLS_SYNC_KEY;
+  const expected = process.env.MLS_SYNC_KEY?.trim();
   if (!expected) return false;
 
   const got = req.headers.get("x-mls-sync-key") || "";
-  return got === expected;
+  return timingSafeStringEqual(got, expected);
 }
 
 function arrayify<T>(val: T | T[] | undefined | null): T[] {
@@ -543,6 +545,9 @@ function extractRetsUrlsFromLogin(parsed: any) {
 type StepLog = { step: string; start?: boolean; done?: boolean; ms?: number; message?: string };
 
 export async function POST(req: Request) {
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.mlsSync);
+  if (rl) return rl;
+
   const steps: StepLog[] = [];
   const step = (name: string, fn: () => Promise<void> | void) => {
     const startMs = Date.now();
@@ -1034,7 +1039,14 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.mlsSync);
+  if (rl) return rl;
+
+  if (process.env.NODE_ENV === "production" && !isAuthorized(req)) {
+    return json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const exampleCurl =
     process.env.NODE_ENV !== "production"
       ? "curl -X POST 'http://localhost:3000/api/mls/sync?limit=50&pages=2&dryRun=1'"

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseListingsQuery } from "@/server/validation/listings-query";
 
 export const runtime = "nodejs";
 
@@ -23,24 +25,34 @@ export type ListingListItem = {
 };
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.publicRead);
+  if (rl) return rl;
 
-  const qRaw = (searchParams.get("q") ?? "").trim();
-  const minPrice = searchParams.get("minPrice");
-  const maxPrice = searchParams.get("maxPrice");
-  const bedsParam = searchParams.getAll("beds");
-  const bathsParam = searchParams.getAll("baths");
-  const densParam = searchParams.getAll("dens");
-  const propertyType = (searchParams.get("propertyType") ?? "").trim() || null;
-  const city = (searchParams.get("city") ?? "").trim() || null;
-  const status = (searchParams.get("status") ?? "").trim() || null;
-  const swLat = searchParams.get("swLat");
-  const swLng = searchParams.get("swLng");
-  const neLat = searchParams.get("neLat");
-  const neLng = searchParams.get("neLng");
-  const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-  const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 24), 1), 100);
-  const sort = searchParams.get("sort") ?? "price_desc";
+  const parsed = parseListingsQuery(req);
+  if (!parsed.ok) return parsed.response;
+
+  const {
+    q: qRaw,
+    minPrice,
+    maxPrice,
+    beds: bedsParam,
+    baths: bathsParam,
+    dens: densParam,
+    propertyType: propertyTypeRaw,
+    city: cityRaw,
+    status: statusRaw,
+    swLat,
+    swLng,
+    neLat,
+    neLng,
+    page,
+    limit,
+    sort,
+  } = parsed.query;
+
+  const propertyType = propertyTypeRaw.trim() || null;
+  const city = cityRaw.trim() || null;
+  const status = statusRaw.trim() || null;
 
   const where: Prisma.ListingWhereInput = {};
 

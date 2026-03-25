@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import { isAdmin } from "@/lib/admin";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { adminClientPostSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -47,18 +54,18 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const userId = typeof body.userId === "string" ? body.userId.trim() : null;
-  if (!userId) {
-    return NextResponse.json(
-      { error: "userId is required" },
-      { status: 400 }
-    );
-  }
+  const parsed = await parseJsonBody(req, adminClientPostSchema);
+  if (!parsed.ok) return parsed.response;
+
+  const body = parsed.data;
+  const userId = body.userId.trim();
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
@@ -69,24 +76,32 @@ export async function POST(req: Request) {
     where: { userId },
   });
 
-  const data = {
-    buyerClient: !!body.buyerClient,
-    sellerClient: !!body.sellerClient,
-    propertyManagementClient: !!body.propertyManagementClient,
+  const flags = {
+    buyerClient: body.buyerClient === true,
+    sellerClient: body.sellerClient === true,
+    propertyManagementClient: body.propertyManagementClient === true,
     showFiles: body.showFiles !== false,
     showStats: body.showStats !== false,
     showNotes: body.showNotes !== false,
     showUpdates: body.showUpdates !== false,
-    statsJson: body.statsJson ?? null,
   };
+  const statsPart =
+    body.statsJson === undefined
+      ? {}
+      : {
+          statsJson:
+            body.statsJson === null
+              ? Prisma.JsonNull
+              : (body.statsJson as Prisma.InputJsonValue),
+        };
 
   const client = existing
     ? await prisma.client.update({
         where: { id: existing.id },
-        data,
+        data: { ...flags, ...statsPart },
       })
     : await prisma.client.create({
-        data: { userId, ...data },
+        data: { userId, ...flags, ...statsPart },
       });
 
   return NextResponse.json({ client });

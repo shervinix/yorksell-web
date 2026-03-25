@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-// Keep a single PrismaClient in dev to avoid exhausting connections.
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseMlsSearchQuery } from "@/server/validation/mls-search-query";
 
 export const runtime = "nodejs";
 
@@ -25,15 +22,16 @@ type ListingSearchResult = {
 };
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const qRaw = (searchParams.get("q") ?? "").trim();
-  const q = qRaw.toLowerCase();
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.publicRead);
+  if (rl) return rl;
 
-  const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 12), 1), 50);
+  const parsed = parseMlsSearchQuery(req);
+  if (!parsed.ok) return parsed.response;
+
+  const { q: qRaw, limit } = parsed;
 
   if (!qRaw) return NextResponse.json([], { status: 200 });
 
-  // Heuristic: treat as MLS number if it contains a digit and is relatively short
   const looksLikeMls = /\d/.test(qRaw) && qRaw.replace(/\s+/g, "").length <= 12;
 
   const hasRealData = {

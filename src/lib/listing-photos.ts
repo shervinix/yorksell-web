@@ -1,8 +1,9 @@
 /**
  * Extract listing photo URLs from CREA DDF raw JSON (listing.raw).
- * Prefers LargePhotoURL (full quality), then PhotoURL, then ThumbnailPhotoURL.
- * Returns all photos in order for use in a slideshow.
+ * Only high-resolution images are returned: structured LargePhotoURL/LargePhotoUrl,
+ * plus other URLs that pass strict HD heuristics (no thumbnails / small variants).
  */
+
 function nodeStr(obj: unknown): string | null {
   if (obj == null) return null;
   if (typeof obj === "string") return obj.trim() || null;
@@ -25,15 +26,15 @@ function getByKey(obj: Record<string, unknown>, ...suffixes: string[]): unknown 
   return undefined;
 }
 
-function pickUrl(rec: Record<string, unknown>): string | null {
+/** CREA “large” image fields only — never PhotoURL / Thumbnail (those are often lower res). */
+function pickLargePhotoFieldUrl(rec: Record<string, unknown>): string | null {
   const s =
     nodeStr(rec.LargePhotoURL ?? rec.LargePhotoUrl) ??
-    nodeStr(getByKey(rec, "LargePhotoURL", "LargePhotoUrl")) ??
-    nodeStr(rec.PhotoURL ?? rec.PhotoUrl) ??
-    nodeStr(getByKey(rec, "PhotoURL", "PhotoUrl")) ??
-    nodeStr(rec.ThumbnailPhotoURL ?? rec.ThumbnailPhotoUrl) ??
-    nodeStr(getByKey(rec, "ThumbnailPhotoURL", "MediaURL", "URL"));
-  return typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://")) ? s : null;
+    nodeStr(getByKey(rec, "LargePhotoURL", "LargePhotoUrl"));
+  if (typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://"))) {
+    if (!looksLikeLowResUrl(s)) return s;
+  }
+  return null;
 }
 
 function arrayify<T>(val: T | T[] | undefined | null): T[] {
@@ -41,21 +42,119 @@ function arrayify<T>(val: T | T[] | undefined | null): T[] {
   return Array.isArray(val) ? val : [val];
 }
 
-/** Quality order: 1 = best. Used to sort so we prefer LargePhotoURL over PhotoURL over Thumbnail. */
-function urlQuality(url: string): number {
+/** True if the URL string clearly points at a thumbnail or small asset. */
+function looksLikeLowResUrl(url: string): boolean {
   const u = url.toLowerCase();
-  if (u.includes("large") || u.includes("full") || u.includes("original")) return 3;
-  if (u.includes("thumbnail") || u.includes("thumb")) return 1;
-  return 2; // medium / PhotoURL
+  return (
+    /\b(thumbnail|thumbnails|thumb|thumbs)\b/.test(u) ||
+    /thumbnailphoto|_thumbnail|_thumb_|-thumb-|\/thumb\/|\/thumbs?\//.test(u) ||
+    /\b(small|sm\b|mini|tiny|icon|avatar|lowres|low-res)\b/.test(u) ||
+    /\b(medium|med\b|preview)\b/.test(u) ||
+    /[?&]size=\s*(small|thumb|thumbnail|medium|s)\b/i.test(u)
+  );
 }
 
-/** Recursively collect all photo URLs from obj (any structure). Prefer Large > PhotoURL > Thumbnail. */
-function deepCollectPhotoUrls(obj: unknown, depth: number, seen: Set<string>, out: { url: string; quality: number }[]): void {
+function parsePositiveInt(v: string | null): number {
+  if (!v) return 0;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Strict HD check for URLs not sourced from LargePhotoURL fields.
+ * Used for deep-scan / root fallbacks so we never mix in obvious low-res assets.
+ */
+export function isHdPhotoUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  // Our proxy always requests _LargePhoto_ first server-side.
+  if (trimmed.startsWith("/api/listings/photo")) return true;
+
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
+  if (looksLikeLowResUrl(trimmed)) return false;
+
+  const u = trimmed.toLowerCase();
+  if (
+    u.includes("largephoto") ||
+    u.includes("_largephoto_") ||
+    /\b(large|full|original|highres|high-res|maxres|max\b|xlarge|xxl|2x|@2x)\b/.test(u)
+  ) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const w = Math.max(
+      parsePositiveInt(parsed.searchParams.get("w")),
+      parsePositiveInt(parsed.searchParams.get("width"))
+    );
+    const h = Math.max(
+      parsePositiveInt(parsed.searchParams.get("h")),
+      parsePositiveInt(parsed.searchParams.get("height"))
+    );
+    const longest = Math.max(w, h);
+    if (longest > 0 && longest < 900) return false;
+    if (longest >= 1200) return true;
+  } catch {
+    /* ignore */
+  }
+
+  return false;
+}
+
+function canonicalizePhotoKey(input: string): string {
+  try {
+    const u = new URL(input);
+    const path = u.pathname
+      .toLowerCase()
+      .replace(/_largephoto_|thumbnailphoto|photo/gi, "photo")
+      .replace(/[-_](large|thumb|thumbnail|small|medium|full|original)\b/gi, "");
+    return `${u.hostname.toLowerCase()}${path}`;
+  } catch {
+    return input
+      .toLowerCase()
+      .replace(/_largephoto_|thumbnailphoto|photo/gi, "photo")
+      .replace(/[?&](w|h|width|height|q|quality|fit|crop|auto|fm|format)=[^&]*/gi, "");
+  }
+}
+
+/** Prefer higher “rank” when two URLs map to the same canonical asset. */
+function urlRank(url: string, fromLargeField: boolean): number {
+  if (fromLargeField) return 100;
+  if (isHdPhotoUrl(url)) {
+    const low = url.toLowerCase();
+    if (low.includes("largephoto") || low.includes("_largephoto_") || /\blarge\b/.test(low)) return 80;
+    if (low.includes("original") || low.includes("full")) return 75;
+    return 60;
+  }
+  return -1;
+}
+
+function addBestVariant(
+  map: Map<string, { url: string; rank: number; order: number }>,
+  url: string,
+  order: number,
+  fromLargeField: boolean
+) {
+  const rank = urlRank(url, fromLargeField);
+  if (rank < 0) return;
+  const key = canonicalizePhotoKey(url);
+  const existing = map.get(key);
+  if (!existing || rank > existing.rank) {
+    map.set(key, { url, rank, order: existing ? existing.order : order });
+  }
+}
+
+function deepCollectHdPhotoUrls(
+  obj: unknown,
+  depth: number,
+  out: Map<string, { url: string; rank: number; order: number }>,
+  counter: { value: number }
+): void {
   if (depth > 6 || obj == null) return;
   if (typeof obj === "string") {
-    if ((obj.startsWith("http://") || obj.startsWith("https://")) && !seen.has(obj)) {
-      seen.add(obj);
-      out.push({ url: obj, quality: urlQuality(obj) });
+    if (obj.startsWith("http://") || obj.startsWith("https://")) {
+      addBestVariant(out, obj, counter.value++, false);
     }
     return;
   }
@@ -64,17 +163,21 @@ function deepCollectPhotoUrls(obj: unknown, depth: number, seen: Set<string>, ou
   const keys = Object.keys(r).filter((k) => /photo|media|url|image/i.test(k));
   for (const k of keys) {
     const v = r[k];
-    const s = typeof v === "string" ? v : v && typeof v === "object" && "#text" in v ? String((v as { "#text": unknown })["#text"]) : null;
-    if (typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://")) && !seen.has(s)) {
-      seen.add(s);
-      out.push({ url: s, quality: urlQuality(k + s) });
+    const s =
+      typeof v === "string"
+        ? v
+        : v && typeof v === "object" && "#text" in v
+          ? String((v as { "#text": unknown })["#text"])
+          : null;
+    if (typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://"))) {
+      addBestVariant(out, s, counter.value++, false);
     }
-    if (v && typeof v === "object" && !Array.isArray(v)) deepCollectPhotoUrls(v, depth + 1, seen, out);
-    if (Array.isArray(v)) for (const item of v) deepCollectPhotoUrls(item, depth + 1, seen, out);
+    if (v && typeof v === "object" && !Array.isArray(v)) deepCollectHdPhotoUrls(v, depth + 1, out, counter);
+    if (Array.isArray(v)) for (const item of v) deepCollectHdPhotoUrls(item, depth + 1, out, counter);
   }
   for (const v of Object.values(r)) {
-    if (v && typeof v === "object" && !Array.isArray(v)) deepCollectPhotoUrls(v, depth + 1, seen, out);
-    if (Array.isArray(v)) for (const item of v) deepCollectPhotoUrls(item, depth + 1, seen, out);
+    if (v && typeof v === "object" && !Array.isArray(v)) deepCollectHdPhotoUrls(v, depth + 1, out, counter);
+    if (Array.isArray(v)) for (const item of v) deepCollectHdPhotoUrls(item, depth + 1, out, counter);
   }
 }
 
@@ -100,34 +203,35 @@ export function getListingPhotoUrls(raw: Record<string, unknown> | null | undefi
       ? arrayify(photoLookup.PropertyPhoto ?? photoLookup.Photo)
       : [];
 
-  const urls: string[] = [];
-  const seen = new Set<string>();
+  const variants = new Map<string, { url: string; rank: number; order: number }>();
+  const counter = { value: 0 };
 
   for (const item of propertyPhotoList) {
     if (item && typeof item === "object") {
-      const url = pickUrl(item as Record<string, unknown>);
-      if (url && !seen.has(url)) {
-        seen.add(url);
-        urls.push(url);
-      }
+      const url = pickLargePhotoFieldUrl(item as Record<string, unknown>);
+      if (url) addBestVariant(variants, url, counter.value++, true);
     }
   }
 
+  let urls = [...variants.values()]
+    .sort((a, b) => a.order - b.order)
+    .map((x) => x.url);
+
   if (urls.length > 0) return urls;
 
-  const rootUrl =
-    pickUrl(r) ??
-    nodeStr(r.LargePhotoURL ?? r.PhotoURL ?? r.ThumbnailPhotoURL) ??
-    nodeStr(getByKey(r, "LargePhotoURL", "PhotoURL", "ThumbnailPhotoURL"));
-  if (rootUrl) return [rootUrl];
+  const rootLarge = pickLargePhotoFieldUrl(r);
+  if (rootLarge) return [rootLarge];
 
-  // Fallback: deep-scan raw for any photo-like URLs (handles alternate CREA structures)
-  const collected: { url: string; quality: number }[] = [];
-  deepCollectPhotoUrls(r, 0, new Set(), collected);
-  if (collected.length > 0) {
-    collected.sort((a, b) => b.quality - a.quality);
-    return collected.map((x) => x.url);
+  const collected = new Map<string, { url: string; rank: number; order: number }>();
+  deepCollectHdPhotoUrls(r, 0, collected, { value: 0 });
+  if (collected.size > 0) {
+    urls = [...collected.values()]
+      .sort((a, b) => {
+        if (a.order !== b.order) return a.order - b.order;
+        return b.rank - a.rank;
+      })
+      .map((x) => x.url);
   }
 
-  return [];
+  return urls;
 }

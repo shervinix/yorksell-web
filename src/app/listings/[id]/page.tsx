@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
-import { getListingPhotoUrls } from "@/lib/listing-photos";
+import { getListingPhotoUrls, isHdPhotoUrl } from "@/lib/listing-photos";
 import { ListingPhotoSlideshow } from "../ListingPhotoSlideshow";
 import { SaveListingButton } from "./SaveListingButton";
 
@@ -95,11 +95,13 @@ export default async function ListingPage({ params }: PageProps) {
     isSaved = !!saved;
   }
 
-  const fallbackImageSrc =
-    (listing.photoUrl && listing.photoUrl.trim()) ||
+  // Prefer digest proxy (requests _LargePhoto_ first) over stored photoUrl, which is often a smaller DDF field.
+  const proxyPhoto =
     (listing.mlsNumber ? `/api/listings/photo?mlsNumber=${encodeURIComponent(listing.mlsNumber)}` : null) ||
-    (listing.ddfId ? `/api/listings/photo?ddfId=${encodeURIComponent(listing.ddfId)}` : null) ||
-    "";
+    (listing.ddfId ? `/api/listings/photo?ddfId=${encodeURIComponent(listing.ddfId)}` : null);
+  const stored = listing.photoUrl?.trim() ?? "";
+  const fallbackImageSrc =
+    proxyPhoto || (stored && isHdPhotoUrl(stored) ? stored : "") || "";
   const raw = (listing.raw ?? {}) as Record<string, unknown>;
   const photoUrls = getListingPhotoUrls(raw);
   const price = listing.price

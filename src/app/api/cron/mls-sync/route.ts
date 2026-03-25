@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { timingSafeStringEqual } from "@/server/secure-compare";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -33,10 +35,27 @@ function getDateInTz(isoDate: string, timezone: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.cron);
+  if (rl) return rl;
+
+  const secret = process.env.CRON_SECRET?.trim();
+
+  if (process.env.NODE_ENV === "production") {
+    if (!secret) {
+      return NextResponse.json(
+        { error: "Cron is not configured (CRON_SECRET required in production)." },
+        { status: 503 }
+      );
+    }
+  }
+
   if (secret) {
     const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${secret}`) {
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const token = authHeader.slice(7);
+    if (!timingSafeStringEqual(token, secret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }

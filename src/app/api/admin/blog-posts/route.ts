@@ -3,20 +3,26 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { parseJsonBody } from "@/server/validation/parse-json";
+import { adminBlogCreateSchema } from "@/server/validation/schemas";
 
 export const runtime = "nodejs";
 
-async function requireAdmin(): Promise<NextResponse | null> {
+async function gateAdmin(req: Request): Promise<NextResponse | null> {
   const session = await getServerSession(authOptions);
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.admin, session?.user?.id as string | undefined);
+  if (rl) return rl;
+
   if (!session?.user?.email || !(await isAdmin(session.user.email, prisma))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;
 }
 
-export async function GET() {
-  const unauth = await requireAdmin();
-  if (unauth) return unauth;
+export async function GET(req: Request) {
+  const denied = await gateAdmin(req);
+  if (denied) return denied;
 
   const posts = await prisma.blogPost.findMany({
     select: {
@@ -35,70 +41,17 @@ export async function GET() {
   return NextResponse.json(posts);
 }
 
-type CreateBody = {
-  slug: string;
-  title: string;
-  excerpt: string;
-  body: string;
-  coverImageUrl?: string | null;
-  publishedAt?: string | null;
-};
-
-function parseCreateBody(body: unknown): CreateBody | null {
-  if (typeof body !== "object" || body === null) return null;
-  const o = body as Record<string, unknown>;
-  if (
-    typeof o.slug !== "string" ||
-    typeof o.title !== "string" ||
-    typeof o.excerpt !== "string" ||
-    typeof o.body !== "string"
-  )
-    return null;
-  return {
-    slug: o.slug.trim(),
-    title: (o.title as string).trim(),
-    excerpt: (o.excerpt as string).trim(),
-    body: (o.body as string).trim(),
-    coverImageUrl:
-      o.coverImageUrl === null || o.coverImageUrl === undefined
-        ? undefined
-        : typeof o.coverImageUrl === "string"
-          ? o.coverImageUrl.trim() || null
-          : null,
-    publishedAt:
-      o.publishedAt === null || o.publishedAt === undefined
-        ? null
-        : typeof o.publishedAt === "string" && o.publishedAt.trim()
-          ? o.publishedAt.trim()
-          : null,
-  };
-}
-
 export async function POST(req: Request) {
-  const unauth = await requireAdmin();
-  if (unauth) return unauth;
+  const denied = await gateAdmin(req);
+  if (denied) return denied;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, adminBlogCreateSchema);
+  if (!parsed.ok) return parsed.response;
 
-  const parsed = parseCreateBody(body);
-  if (!parsed) {
-    return NextResponse.json(
-      { error: "Missing or invalid fields: slug, title, excerpt, body" },
-      { status: 400 }
-    );
-  }
-
-  if (!parsed.slug) {
-    return NextResponse.json({ error: "slug is required" }, { status: 400 });
-  }
+  const data = parsed.data;
 
   const existing = await prisma.blogPost.findUnique({
-    where: { slug: parsed.slug },
+    where: { slug: data.slug },
   });
   if (existing) {
     return NextResponse.json(
@@ -108,15 +61,22 @@ export async function POST(req: Request) {
   }
 
   const publishedAt =
-    parsed.publishedAt ? new Date(parsed.publishedAt) : null;
+    data.publishedAt && data.publishedAt !== ""
+      ? new Date(data.publishedAt)
+      : null;
+
+  const coverImageUrl =
+    data.coverImageUrl === "" || data.coverImageUrl == null
+      ? undefined
+      : data.coverImageUrl;
 
   const post = await prisma.blogPost.create({
     data: {
-      slug: parsed.slug,
-      title: parsed.title,
-      excerpt: parsed.excerpt,
-      body: parsed.body,
-      coverImageUrl: parsed.coverImageUrl ?? undefined,
+      slug: data.slug,
+      title: data.title,
+      excerpt: data.excerpt,
+      body: data.body,
+      coverImageUrl,
       publishedAt,
     },
   });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db/prisma";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
 import type { ListingListItem } from "../route";
 
 export const runtime = "nodejs";
@@ -51,7 +52,10 @@ function toListItem(r: {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.publicRead);
+  if (rl) return rl;
+
   const raw = process.env.YORKELL_MLS_NUMBERS ?? "";
   const mlsNumbers = raw
     .split(",")

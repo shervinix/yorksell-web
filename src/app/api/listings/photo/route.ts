@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
+import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
+import { photoQuerySchema } from "@/server/validation/schemas";
 
-const GET_OBJECT_URL = process.env.DDF_GET_OBJECT_URL || "https://data.crea.ca/Object.svc/GetObject";
+export const runtime = "nodejs";
+
 const HTTP_TIMEOUT_MS = 15_000;
+
+/**
+ * CREA DDF GetObject base URL (public documented endpoint). Override with DDF_GET_OBJECT_URL
+ * in environment — never expose digest credentials to the client.
+ */
+function getGetObjectUrl(): string {
+  const fromEnv = process.env.DDF_GET_OBJECT_URL?.trim();
+  if (fromEnv) return fromEnv;
+  return "https://data.crea.ca/Object.svc/GetObject";
+}
 
 /**
  * GET /api/listings/photo?ddfId=xxx&mlsNumber=xxx
@@ -15,6 +28,7 @@ async function fetchGetObject(
   username: string,
   password: string
 ): Promise<{ ok: boolean; buffer?: ArrayBuffer; contentType?: string; status?: number }> {
+  const GET_OBJECT_URL = getGetObjectUrl();
   const url = `${GET_OBJECT_URL}?Resource=Property&Type=${encodeURIComponent(type)}&ID=${encodeURIComponent(objectId)}`;
   const { default: DigestClient } = await import("digest-fetch");
   const client = new DigestClient(username, password, { algorithm: "MD5" });
@@ -39,10 +53,29 @@ async function fetchGetObject(
 }
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const ddfId = url.searchParams.get("ddfId")?.trim();
-  const mlsNumber = url.searchParams.get("mlsNumber")?.trim();
+  const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.publicRead);
+  if (rl) return rl;
 
+  const url = new URL(req.url);
+  for (const k of new Set(url.searchParams.keys())) {
+    if (k !== "ddfId" && k !== "mlsNumber") {
+      return NextResponse.json({ error: "Unknown query parameter" }, { status: 400 });
+    }
+  }
+
+  const q = {
+    ddfId: url.searchParams.get("ddfId")?.trim() || undefined,
+    mlsNumber: url.searchParams.get("mlsNumber")?.trim() || undefined,
+  };
+  const validated = photoQuerySchema.safeParse(q);
+  if (!validated.success) {
+    return NextResponse.json(
+      { error: "Invalid or missing ddfId / mlsNumber" },
+      { status: 400 }
+    );
+  }
+
+  const { ddfId, mlsNumber } = validated.data;
   const id = mlsNumber || ddfId;
   if (!id) {
     return NextResponse.json({ error: "Missing ddfId or mlsNumber" }, { status: 400 });
@@ -54,19 +87,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "DDF credentials not configured" }, { status: 503 });
   }
 
-  // RealtyPress: ID=ListingID:1 for first photo. Try mlsNumber first (ListingID), then ddfId.
   const objectId = `${id}:1`;
   const types = ["_LargePhoto_", "Photo"];
-  const attempts: { type: string; ok: boolean; status?: number }[] = [];
   for (const type of types) {
     const result = await fetchGetObject(objectId, type, username, password);
-    attempts.push({ type, ok: result.ok, status: result.status });
     if (result.ok && result.buffer) {
-      // #region agent log
-      const payload = { location: "api/listings/photo/route.ts", message: "GetObject success", data: { id, objectId, type, attempts }, timestamp: Date.now(), hypothesisId: "H2" };
-      try { require("fs").appendFileSync(require("path").join(process.cwd(), ".cursor", "debug.log"), JSON.stringify(payload) + "\n"); } catch {}
-      fetch("http://127.0.0.1:7242/ingest/989fcf82-5e2c-43b6-af60-a19ff17876f2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {});
-      // #endregion
       return new NextResponse(result.buffer, {
         headers: {
           "content-type": result.contentType || "image/jpeg",
@@ -75,12 +100,6 @@ export async function GET(req: Request) {
       });
     }
   }
-
-  // #region agent log
-  const payload = { location: "api/listings/photo/route.ts", message: "GetObject failed", data: { id, mlsNumber: mlsNumber || null, ddfId: ddfId || null, objectId, attempts }, timestamp: Date.now(), hypothesisId: "H2,H3,H4" };
-  try { require("fs").appendFileSync(require("path").join(process.cwd(), ".cursor", "debug.log"), JSON.stringify(payload) + "\n"); } catch {}
-  fetch("http://127.0.0.1:7242/ingest/989fcf82-5e2c-43b6-af60-a19ff17876f2", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {});
-  // #endregion
 
   return NextResponse.json(
     { error: "GetObject failed", hint: "Tried _LargePhoto_ and Photo with ID " + objectId },
