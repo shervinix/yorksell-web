@@ -199,6 +199,9 @@ export default function SiteHeader() {
               <Link href="/team" className={linkClass}>
                 Team
               </Link>
+              <Link href="/compass" className={linkClass}>
+                Compass
+              </Link>
               <Link href="/footprint" className={linkClass}>
                 Footprint
               </Link>
@@ -386,6 +389,7 @@ export default function SiteHeader() {
             </div>
             <MobileNavLink href="/about" onClick={() => setMobileOpen(false)}>About</MobileNavLink>
             <MobileNavLink href="/team" onClick={() => setMobileOpen(false)}>Team</MobileNavLink>
+            <MobileNavLink href="/compass" onClick={() => setMobileOpen(false)}>Compass</MobileNavLink>
             <MobileNavLink href="/footprint" onClick={() => setMobileOpen(false)}>Footprint</MobileNavLink>
             <MobileNavLink href="/blog" onClick={() => setMobileOpen(false)}>Blog</MobileNavLink>
           </div>

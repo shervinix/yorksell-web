@@ -64,7 +64,7 @@ export default function BuyPage() {
               </span>
               <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Search & shortlist</h3>
               <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-                We match you with listings that fit your budget, areas, and must-haves so you focus on the right properties.
+                We match you with listings that fit your budget, location, and must-haves so you focus on the right properties.
               </p>
             </div>
             <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
@@ -76,7 +76,7 @@ export default function BuyPage() {
               </span>
               <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Viewings & advice</h3>
               <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-                We coordinate showings and point out what to look for — condition, value, and red flags — so you decide with confidence.
+                We coordinate showings and point out what to look for; condition, value, and red flags, so you can decide with confidence.
               </p>
             </div>
             <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.15)] sm:col-span-2 lg:col-span-1">

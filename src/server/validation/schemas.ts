@@ -9,6 +9,7 @@ const LEAD_SOURCES = [
   "property_management_page",
   "newsletter",
   "join_page",
+  "compass_page",
 ] as const;
 
 /** Flat metadata only — avoids arbitrary nested JSON (prototype / storage risks). */

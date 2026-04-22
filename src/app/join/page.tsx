@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 const HERO_IMAGE =
-  "https://picsum.photos/seed/join-yorksell/2600/800";
+  "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=2600&q=80";
 
 export default function JoinYorksellPage() {
   return (

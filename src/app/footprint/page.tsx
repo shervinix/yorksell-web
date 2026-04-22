@@ -56,7 +56,7 @@ export default async function FootprintPage() {
             Our Footprint
           </h1>
           <p className="mt-3 max-w-xl text-lg text-white/85">
-            Yorksell Real Estate Group&apos;s presence across the Greater Toronto Area — every sale, purchase, and active listing.
+            Yorksell Real Estate Group&apos;s presence across the Greater Toronto Area. Past transactions and active listings
           </p>
         </div>
       </header>

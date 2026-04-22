@@ -15,21 +15,21 @@ export const GOOGLE_REVIEWS_URL = "https://share.google/O3eUmuRh96SXqN4qo";
 
 export const REVIEWS: Review[] = [
   {
-    author: "Sarah M.",
+    author: "Justin Blackie",
     rating: 5,
-    text: "Professional, responsive, and made our first home purchase smooth. Would recommend to anyone in the GTA.",
-    date: "2024",
+    text: "I trust Yorksell Group to always provide the best service when it comes to real estate.",
+    date: "2025",
   },
   {
-    author: "James K.",
+    author: "Tom Lee",
     rating: 5,
-    text: "Got us over asking in a tough market. Clear communication from listing to closing. Very pleased.",
-    date: "2024",
+    text: "Thank you Yorksell Team for finding and helping me close on my dream home",
+    date: "2025",
   },
   {
-    author: "Priya L.",
+    author: "Ali Az",
     rating: 5,
-    text: "They helped us find the right condo and negotiated a great deal. Felt supported the whole way.",
-    date: "2024",
+    text: "I had an excellent experience working with the Yorksell team. From start to finish, everything was handled with professionalism, transparency, and genuine care.",
+    date: "2026",
   },
 ];

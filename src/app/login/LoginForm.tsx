@@ -23,7 +23,7 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   const inputClass =
-    "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 outline-none focus:ring-2 focus:ring-black";
+    "mt-1 w-full rounded-xl border border-white/10 bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)]/50";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,12 +48,12 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm border border-zinc-200">
-        <h1 className="text-2xl font-semibold text-zinc-900">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--background)] px-4 text-[var(--foreground)]">
+      <div className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[var(--surface-elevated)] p-8 shadow-[0_8px_32px_rgba(0,0,0,0.25)]">
+        <h1 className="text-2xl font-semibold text-[var(--foreground)]">
           {isAdminLogin ? "Yorksell Admin" : "Log in"}
         </h1>
-        <p className="mt-2 text-sm text-zinc-600">
+        <p className="mt-2 text-sm text-[var(--muted)]">
           {isAdminLogin
             ? "Sign in to access the admin panel. Manage clients, MLS sync, and more."
             : "Access your Yorksell member dashboard."}
@@ -61,7 +61,7 @@ export default function LoginForm() {
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div>
-            <label className="text-sm font-medium text-zinc-800">Email</label>
+            <label className="text-sm font-medium text-[var(--foreground)]">Email</label>
             <input
               className={inputClass}
               value={email}
@@ -73,7 +73,7 @@ export default function LoginForm() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-zinc-800">Password</label>
+            <label className="text-sm font-medium text-[var(--foreground)]">Password</label>
             <input
               className={inputClass}
               value={password}
@@ -85,7 +85,7 @@ export default function LoginForm() {
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
               {error}
             </div>
           )}
@@ -93,7 +93,7 @@ export default function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-black py-2.5 text-white font-medium disabled:opacity-60"
+            className="w-full rounded-xl bg-[var(--accent)] py-2.5 font-medium text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
@@ -102,7 +102,7 @@ export default function LoginForm() {
             <button
               type="button"
               onClick={() => router.push("/signup")}
-              className="w-full rounded-xl border py-2.5 text-zinc-900 font-medium"
+              className="w-full rounded-xl border border-white/10 bg-transparent py-2.5 font-medium text-[var(--foreground)] transition hover:bg-white/5"
             >
               Create an account
             </button>

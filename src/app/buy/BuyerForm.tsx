@@ -243,7 +243,7 @@ export default function BuyerForm() {
             disabled={loading}
             className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 transition"
           >
-            {loading ? "Sending…" : "Get started — we&apos;ll be in touch"}
+            {loading ? "Sending…" : "Get started"}
           </button>
         </form>
       )}

@@ -216,46 +216,28 @@ export default function HomePage() {
         <div className="relative z-10 mx-auto flex max-w-6xl flex-1 px-4 pb-16 pt-2 sm:px-6 md:pb-24 md:pt-4">
           <div className="flex max-w-2xl flex-col justify-end">
             <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl">
-              Toronto & GTA real estate, with clarity.
+              Advice You Can Trust.
             </h1>
             <p className="mt-5 max-w-lg text-lg text-white/80 leading-relaxed">
-              We help you buy, sell, and invest with a straightforward process and direct communication.
+              Real estate across Toronto and the GTA. Clear process, honest advice, no noise
             </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
-                href="/listings"
+                href="/contact"
                 className="inline-flex h-12 items-center justify-center rounded-xl bg-[var(--accent)] px-6 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)]"
               >
-                View listings
+                Get in touch
               </Link>
               <Link
-                href="/contact"
+                href="/listings"
                 className="inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-6 text-sm font-medium text-white transition hover:bg-white/10"
               >
-                Get in touch
+                View listings
               </Link>
             </div>
           </div>
         </div>
       </header>
-
-      {/* TRUST STRIP */}
-      <section className="border-t border-white/[0.06] bg-[var(--surface)]">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:py-12">
-          <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
-            <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-              <p className="max-w-xl text-[var(--foreground)] font-medium">
-                Advice you can trust. We focus on pricing, presentation, and execution so you can make confident decisions.
-              </p>
-              <div className="grid grid-cols-3 gap-6">
-                <TrustStat value="Responsive" label="Communication" />
-                <TrustStat value="Data-driven" label="Pricing" />
-                <TrustStat value="Organized" label="Process" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ABOUT */}
       <section className="border-t border-white/[0.06] bg-[var(--background)]">
@@ -263,23 +245,23 @@ export default function HomePage() {
           <div className="grid gap-12 md:grid-cols-2 md:items-center">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
-                A focused team for buyers and sellers.
+                The team behind the result.
               </h2>
               <p className="mt-5 text-[var(--muted)] leading-relaxed">
-                We handle pricing, marketing, and negotiation so you get a clear process and confident outcomes.
+                Pricing, presentation, and negotiation handled with precision. You stay informed at every stage and nothing gets missed.
               </p>
               <ul className="mt-6 space-y-3 text-sm text-[var(--foreground)]/90">
                 <li className="flex gap-3">
                   <Check />
-                  <span>Pricing based on current comparables</span>
+                  <span>Every decision supported by current market intelligence</span>
                 </li>
                 <li className="flex gap-3">
                   <Check />
-                  <span>Professional photography and presentation</span>
+                  <span>Marketing designed to position, not just promote</span>
                 </li>
                 <li className="flex gap-3">
                   <Check />
-                  <span>Clear communication at every step</span>
+                  <span>One point of contact, always available</span>
                 </li>
               </ul>
               <div className="mt-10 flex gap-3">
@@ -324,10 +306,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
           <div className="mb-10">
             <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
-              How we help
+              Our Expertise
             </h2>
             <p className="mt-2 text-[var(--muted)]">
-              Buy, sell, or invest — with one team and one process.
+              Three ways to work with us, same standard of service.
             </p>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
@@ -337,13 +319,13 @@ export default function HomePage() {
               bullets={["Curated search", "Offer strategy", "Closing support"]}
               href="/listings"
               cta="View listings"
-              image="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80"
+              image="https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=800&q=80"
               imageAlt=""
             />
             <ServiceCard
               title="Sell"
               body="From pricing to marketing to negotiation, we manage the full process."
-              bullets={["Market pricing", "Professional marketing", "Negotiation"]}
+              bullets={["Market pricing", "Professional marketing", "Expert negotiation"]}
               href="/contact"
               cta="Book a consultation"
               image="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"
@@ -352,7 +334,7 @@ export default function HomePage() {
             <ServiceCard
               title="Invest"
               body="We evaluate numbers and strategy so you can make informed decisions."
-              bullets={["Rentability analysis", "Cash flow review", "Exit planning"]}
+              bullets={["Cap rate and NOI analysis", "Acquisition structuring and due diligence", "Disposition and exit strategy"]}
               href="/contact"
               cta="Get in touch"
               image="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
@@ -556,7 +538,7 @@ export default function HomePage() {
                   Join our network
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-[var(--muted)] md:text-lg">
-                  Get market insights, new listings, and updates from Yorksell. No spam — we send only what’s useful.
+                  Get market insights, new listings, and updates from Yorksell. No spam, we send only what’s useful.
                 </p>
               </div>
               <JoinNetworkForm />
@@ -579,14 +561,21 @@ function JoinNetworkForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
+    const trimmedEmail = email.trim();
+    const trimmedName = name.trim();
+    if (!trimmedEmail || !trimmedName) {
+      setStatus("error");
+      setMessage("Please provide both name and email.");
+      return;
+    }
     setStatus("loading");
     try {
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: email.trim(),
-          name: name.trim() || undefined,
+          email: trimmedEmail,
+          name: trimmedName,
           source: "newsletter",
         }),
       });
@@ -626,7 +615,8 @@ function JoinNetworkForm() {
           <input
             type="text"
             name="name"
-            placeholder="Name (optional)"
+            required
+            placeholder="Name"
             className={inputClass + " sm:w-40"}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -652,15 +642,6 @@ function JoinNetworkForm() {
         </p>
       )}
     </form>
-  );
-}
-
-function TrustStat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="text-center">
-      <div className="text-sm font-semibold text-[var(--foreground)]">{value}</div>
-      <div className="mt-0.5 text-xs text-[var(--muted)]">{label}</div>
-    </div>
   );
 }
 

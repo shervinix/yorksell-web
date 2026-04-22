@@ -52,7 +52,7 @@ export default async function TeamMemberPage({ params }: PageProps) {
                 <img
                   src={member.image}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className={`h-full w-full object-cover ${member.imageClassName ?? ""}`}
                   sizes="(max-width: 768px) 100vw, 340px"
                 />
               </div>

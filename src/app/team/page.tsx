@@ -34,7 +34,7 @@ export default function TeamPage() {
             Meet The Team
           </h1>
           <p className="mt-3 max-w-xl text-lg text-white/85">
-            The partners behind Yorksell — focused on pricing, presentation, and execution for Toronto & GTA.
+            The partners behind Yorksell.
           </p>
         </div>
       </header>
@@ -52,7 +52,7 @@ export default function TeamPage() {
                   <img
                     src={member.image}
                     alt=""
-                    className="h-full w-full object-cover transition group-hover:scale-105"
+                    className={`h-full w-full object-cover transition group-hover:scale-105 ${member.imageClassName ?? ""}`}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
@@ -61,12 +61,7 @@ export default function TeamPage() {
                   <h2 className="text-xl font-semibold tracking-tight text-[var(--foreground)]">
                     {member.name}
                   </h2>
-                  <p className="mt-1 text-sm font-medium text-[var(--accent)]">{member.role}</p>
-                  {member.tagline && (
-                    <p className="mt-3 text-sm leading-relaxed text-[var(--muted)] line-clamp-2">
-                      {member.tagline}
-                    </p>
-                  )}
+                  <p className="mt-1 text-sm font-medium text-white/70">{member.role}</p>
                   <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[var(--accent)] group-hover:underline">
                     View profile
                     <span aria-hidden>→</span>
