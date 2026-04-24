@@ -230,7 +230,7 @@ export default function CompassPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-lg font-medium text-[var(--foreground)]">Not sure where to start?</p>
             <Link
-              href="#"
+              href="/contact"
               className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-5 text-sm font-medium text-[var(--foreground)] hover:bg-white/5"
             >
               Book a 15-minute call

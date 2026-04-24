@@ -220,7 +220,15 @@ export default async function ListingPage({ params }: PageProps) {
         <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
           <div className="md:col-span-2 space-y-10">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--foreground)]">Details</h2>
+              <div className="flex flex-col gap-2 border-b border-white/[0.08] pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+                <h2 className="text-lg font-semibold text-[var(--foreground)]">Details</h2>
+                <div className="flex flex-col gap-0.5 sm:items-end sm:text-right">
+                  <span className="text-xs font-medium text-[var(--muted)]">List price</span>
+                  <p className="text-2xl font-bold tabular-nums tracking-tight text-[var(--foreground)] sm:text-3xl">
+                    {price}
+                  </p>
+                </div>
+              </div>
               <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4">
                 <Detail label="Bedrooms" value={listing.beds} />
                 <Detail label="Bathrooms" value={listing.baths} />
