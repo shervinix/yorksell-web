@@ -63,7 +63,7 @@ const SERVICES = [
     title: "Lifestyle and wellness",
     items: [
       "Interior design and home organization",
-      "Healthcare connections including family doctors",
+      "Private concierge and local service setup",
       "Fitness and wellness referrals",
       "Local orientation and access",
     ],
@@ -107,29 +107,42 @@ const HOW_IT_WORKS = [
   },
 ] as const;
 
+const HERO_IMAGE =
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2600&q=80";
+
 export default function CompassPage() {
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <header className="border-t border-white/[0.06] bg-[var(--background)]">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
+      <header className="relative border-t border-white/[0.06] overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <img
+            src={HERO_IMAGE}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="eager"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/70 via-black/55 to-black/80" />
+        </div>
+        <div className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
           <div className="max-w-3xl">
-            <h1 className="text-4xl font-semibold tracking-tight text-[var(--foreground)] md:text-5xl lg:text-6xl">
+            <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl">
               Both directions. One team.
             </h1>
-            <p className="mt-5 text-lg leading-relaxed text-[var(--muted)]">
+            <p className="mt-5 text-lg leading-relaxed text-white/85">
               Yorksell Compass is a full-service relocation program connecting Toronto to the markets that matter most — managing
               every detail of the move for clients arriving in the city and leaving it.
             </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href="#start-your-move"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-[var(--accent)] px-6 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)]"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-gray-900 transition hover:bg-white/90"
               >
                 Start your move
               </Link>
               <Link
                 href="#how-it-works"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/10 px-6 text-sm font-medium text-[var(--foreground)] transition hover:bg-white/5"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/40 px-6 text-sm font-medium text-white transition hover:bg-white/10"
               >
                 See how it works
               </Link>
