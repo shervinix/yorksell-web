@@ -132,10 +132,7 @@ export default function SiteHeader() {
             </Link>
 
             {/* Desktop nav - centered, spaced out; hidden on mobile (hamburger shown instead) */}
-            <nav className="hidden flex-1 items-center justify-center gap-6 md:flex lg:gap-8" aria-label="Main">
-              <Link href="/" className={linkClass}>
-                Home
-              </Link>
+            <nav className="hidden flex-1 items-center justify-center gap-6 xl:flex xl:gap-8" aria-label="Main">
               <Link href="/listings" className={linkClass}>
                 Listings
               </Link>
@@ -212,64 +209,40 @@ export default function SiteHeader() {
 
             <div className="flex shrink-0 items-center gap-2">
               {status !== "loading" && (
-                <>
-                  {!session ? (
-                    <div className="hidden items-center gap-2 md:flex">
-                      <Link
-                        href="/login"
-                        className={
-                          "rounded-lg px-3 py-2 text-sm font-medium transition " +
-                          (navTransparent
-                            ? "text-white/80 hover:bg-white/10 hover:text-white"
-                            : "text-[var(--foreground)]/80 hover:bg-white/10 hover:text-[var(--foreground)]")
-                        }
-                      >
-                        Log in
-                      </Link>
-                      <Link
-                        href="/signup"
-                        className={
-                          "rounded-lg px-3 py-2 text-sm font-medium transition " +
-                          (navTransparent
-                            ? "text-white/80 hover:bg-white/10 hover:text-white"
-                            : "text-[var(--foreground)]/80 hover:bg-white/10 hover:text-[var(--foreground)]")
-                        }
-                      >
-                        Sign up
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="relative hidden md:block" ref={userMenuRef}>
-                      <button
-                        type="button"
-                        onClick={() => setUserMenuOpen((o) => !o)}
-                        className={
-                          "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition " +
-                          (navTransparent
-                            ? "text-white/80 hover:bg-white/10 hover:text-white"
-                            : "text-[var(--foreground)]/80 hover:bg-white/10 hover:text-[var(--foreground)]")
-                        }
-                        aria-expanded={userMenuOpen}
-                        aria-haspopup="true"
-                        aria-label="Account menu"
-                      >
-                        <span className="max-w-[120px] truncate">
-                          {session.user?.name ?? session.user?.email ?? "Account"}
-                        </span>
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          className={"h-4 w-4 shrink-0 transition " + (userMenuOpen ? "rotate-180" : "")}
-                          aria-hidden
-                        >
-                          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                      {userMenuOpen && (
-                        <div
-                          className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] py-1 shadow-xl"
-                          role="menu"
-                        >
+                <div className="relative hidden xl:block" ref={userMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen((o) => !o)}
+                    className={
+                      "inline-flex h-10 w-10 items-center justify-center rounded-xl transition " +
+                      (navTransparent
+                        ? "border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 hover:text-white"
+                        : "border border-white/10 bg-white/5 text-[var(--foreground)]/85 hover:bg-white/10 hover:text-[var(--foreground)]")
+                    }
+                    aria-expanded={userMenuOpen}
+                    aria-haspopup="true"
+                    aria-label="Profile menu"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden>
+                      <path
+                        d="M15 7a3 3 0 11-6 0 3 3 0 016 0Zm-8 11a5 5 0 1110 0v1H7v-1Z"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  {userMenuOpen && (
+                    <div
+                      className="absolute right-0 top-full z-50 mt-1 min-w-[210px] rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] py-1 shadow-xl"
+                      role="menu"
+                    >
+                      {session ? (
+                        <>
+                          <div className="px-4 py-2 text-xs text-[var(--muted)]">
+                            {session.user?.name ?? session.user?.email ?? "Signed in"}
+                          </div>
                           <Link
                             href="/members/profile"
                             className="block px-4 py-2.5 text-sm text-[var(--foreground)] hover:bg-white/5"
@@ -305,17 +278,36 @@ export default function SiteHeader() {
                           >
                             Sign out
                           </button>
-                        </div>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href="/login"
+                            className="block px-4 py-2.5 text-sm text-[var(--foreground)] hover:bg-white/5"
+                            role="menuitem"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            Log in
+                          </Link>
+                          <Link
+                            href="/signup"
+                            className="block px-4 py-2.5 text-sm text-[var(--foreground)] hover:bg-white/5"
+                            role="menuitem"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            Sign up
+                          </Link>
+                        </>
                       )}
                     </div>
                   )}
-                </>
+                </div>
               )}
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
                 className={
-                  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl md:hidden " +
+                  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl xl:hidden " +
                   (navTransparent
                     ? "border border-white/10 bg-white/5 text-white hover:bg-white/10"
                     : "border border-white/10 bg-white/5 text-[var(--foreground)] hover:bg-white/10")
@@ -331,7 +323,7 @@ export default function SiteHeader() {
                 </svg>
               </button>
 
-              <Link href="/contact" className={"hidden h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold md:inline-flex " + ctaPrimaryClass}>
+              <Link href="/contact" className={"hidden h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold xl:inline-flex " + ctaPrimaryClass}>
                 Contact
               </Link>
             </div>
@@ -342,7 +334,7 @@ export default function SiteHeader() {
       {/* Mobile menu drawer */}
       <div
         id="site-mobile-menu"
-        className={mobileOpen ? "fixed inset-0 z-50 md:hidden" : "hidden"}
+        className={mobileOpen ? "fixed inset-0 z-50 xl:hidden" : "hidden"}
         role="dialog"
         aria-modal="true"
         aria-label="Site menu"
@@ -377,7 +369,6 @@ export default function SiteHeader() {
             </button>
           </div>
           <div className="mt-6 grid gap-2">
-            <MobileNavLink href="/" onClick={() => setMobileOpen(false)}>Home</MobileNavLink>
             <MobileNavLink href="/listings" onClick={() => setMobileOpen(false)}>Listings</MobileNavLink>
             <div className="px-2 py-1.5">
               <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Services</p>
