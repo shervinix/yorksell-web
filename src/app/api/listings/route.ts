@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { enforceRateLimit, RATE_LIMIT_PRESETS } from "@/server/rate-limit";
 import { parseListingsQuery } from "@/server/validation/listings-query";
+import { hasRealData } from "@/lib/db-filters";
 
 export const runtime = "nodejs";
 
@@ -158,15 +159,6 @@ export async function GET(req: Request) {
         ? [{ price: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }]
         : [{ updatedAt: "desc" }];
 
-  // Only include listings with at least some real data (exclude empty rows from sync without fetchDetails)
-  const hasRealData: Prisma.ListingWhereInput = {
-    OR: [
-      { mlsNumber: { not: null } },
-      { addressLine: { not: null } },
-      { city: { not: null } },
-      { price: { not: null } },
-    ],
-  };
   const finalWhere: Prisma.ListingWhereInput = { AND: [hasRealData, where] };
 
   const skip = (page - 1) * limit;

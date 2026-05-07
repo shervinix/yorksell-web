@@ -113,7 +113,7 @@ const HERO_IMAGE =
 export default function CompassPage() {
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <header className="relative border-t border-white/[0.06] overflow-hidden">
+      <header className="relative -mt-[6.5rem] min-h-[65vh] overflow-hidden flex flex-col justify-end">
         <div className="absolute inset-0 z-0">
           <img
             src={HERO_IMAGE}
@@ -124,7 +124,7 @@ export default function CompassPage() {
           />
           <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/70 via-black/55 to-black/80" />
         </div>
-        <div className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
+        <div className="relative z-10 mx-auto max-w-6xl px-4 pt-[6.5rem] pb-16 sm:px-6 md:pb-20">
           <div className="max-w-3xl">
             <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl">
               Both directions. One team.

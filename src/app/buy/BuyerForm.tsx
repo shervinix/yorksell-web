@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 
+const labelClass = "block text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-white/[0.12] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder-[var(--muted)]/60 outline-none transition focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20";
+
+const ArrowIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden="true">
+    <path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default function BuyerForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -49,25 +59,14 @@ export default function BuyerForm() {
         return;
       }
       setSent(true);
-      setName("");
-      setEmail("");
-      setPhone("");
-      setBudgetMin("");
-      setBudgetMax("");
-      setAreas("");
-      setBeds("");
-      setBaths("");
-      setTimeline("");
-      setMessage("");
+      setName(""); setEmail(""); setPhone(""); setBudgetMin(""); setBudgetMax("");
+      setAreas(""); setBeds(""); setBaths(""); setTimeline(""); setMessage("");
     } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
-
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2.5 text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)]/50";
 
   return (
     <div className="text-[var(--foreground)]">
@@ -79,7 +78,7 @@ export default function BuyerForm() {
       </p>
 
       {sent ? (
-        <div className="mt-8 rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
+        <div className="mt-8 rounded-2xl border border-white/[0.08] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
           <p className="font-medium text-[var(--foreground)]">Thanks! We&apos;ll reach out soon to start your search.</p>
           <p className="mt-2 text-sm text-[var(--muted)]">
             <button type="button" onClick={() => setSent(false)} className="font-medium text-[var(--accent)] hover:underline">
@@ -91,159 +90,61 @@ export default function BuyerForm() {
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor="buy-name" className="block text-sm font-medium text-[var(--foreground)]">
-                Name
-              </label>
-              <input
-                id="buy-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={inputClass}
-                placeholder="Your name"
-              />
+              <label htmlFor="buy-name" className={labelClass}>Name</label>
+              <input id="buy-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Your name" />
             </div>
             <div>
-              <label htmlFor="buy-email" className="block text-sm font-medium text-[var(--foreground)]">
-                Email <span className="text-[var(--muted)]">(required)</span>
-              </label>
-              <input
-                id="buy-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                placeholder="you@example.com"
-              />
+              <label htmlFor="buy-email" className={labelClass}>Email</label>
+              <input id="buy-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="you@example.com" />
             </div>
           </div>
           <div>
-            <label htmlFor="buy-phone" className="block text-sm font-medium text-[var(--foreground)]">
-              Phone <span className="text-[var(--muted)]">(required)</span>
-            </label>
-            <input
-              id="buy-phone"
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={inputClass}
-              placeholder="Best number to reach you"
-            />
+            <label htmlFor="buy-phone" className={labelClass}>Phone</label>
+            <input id="buy-phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="Best number to reach you" />
           </div>
 
-          <div className="rounded-xl border border-white/[0.06] bg-[var(--surface)] p-4">
-            <p className="text-sm font-medium text-[var(--foreground)]">What you&apos;re looking for</p>
+          <div className="rounded-xl border border-white/[0.1] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">What you&apos;re looking for</p>
             <div className="mt-4 grid gap-5 sm:grid-cols-2">
               <div>
-                <label htmlFor="buy-budget-min" className="block text-xs font-medium text-[var(--muted)]">
-                  Budget (min)
-                </label>
-                <input
-                  id="buy-budget-min"
-                  type="text"
-                  value={budgetMin}
-                  onChange={(e) => setBudgetMin(e.target.value)}
-                  className={inputClass}
-                  placeholder="e.g. 500000"
-                />
+                <label htmlFor="buy-budget-min" className={labelClass}>Budget min</label>
+                <input id="buy-budget-min" type="text" value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} className={inputClass} placeholder="e.g. 500,000" />
               </div>
               <div>
-                <label htmlFor="buy-budget-max" className="block text-xs font-medium text-[var(--muted)]">
-                  Budget (max)
-                </label>
-                <input
-                  id="buy-budget-max"
-                  type="text"
-                  value={budgetMax}
-                  onChange={(e) => setBudgetMax(e.target.value)}
-                  className={inputClass}
-                  placeholder="e.g. 800000"
-                />
+                <label htmlFor="buy-budget-max" className={labelClass}>Budget max</label>
+                <input id="buy-budget-max" type="text" value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} className={inputClass} placeholder="e.g. 800,000" />
               </div>
             </div>
             <div className="mt-4 grid gap-5 sm:grid-cols-3">
               <div>
-                <label htmlFor="buy-areas" className="block text-xs font-medium text-[var(--muted)]">
-                  Areas of interest
-                </label>
-                <input
-                  id="buy-areas"
-                  type="text"
-                  value={areas}
-                  onChange={(e) => setAreas(e.target.value)}
-                  className={inputClass}
-                  placeholder="e.g. North York, Markham"
-                />
+                <label htmlFor="buy-areas" className={labelClass}>Areas of interest</label>
+                <input id="buy-areas" type="text" value={areas} onChange={(e) => setAreas(e.target.value)} className={inputClass} placeholder="e.g. North York" />
               </div>
               <div>
-                <label htmlFor="buy-beds" className="block text-xs font-medium text-[var(--muted)]">
-                  Beds
-                </label>
-                <input
-                  id="buy-beds"
-                  type="text"
-                  value={beds}
-                  onChange={(e) => setBeds(e.target.value)}
-                  className={inputClass}
-                  placeholder="e.g. 2+"
-                />
+                <label htmlFor="buy-beds" className={labelClass}>Beds</label>
+                <input id="buy-beds" type="text" value={beds} onChange={(e) => setBeds(e.target.value)} className={inputClass} placeholder="e.g. 2+" />
               </div>
               <div>
-                <label htmlFor="buy-baths" className="block text-xs font-medium text-[var(--muted)]">
-                  Baths
-                </label>
-                <input
-                  id="buy-baths"
-                  type="text"
-                  value={baths}
-                  onChange={(e) => setBaths(e.target.value)}
-                  className={inputClass}
-                  placeholder="e.g. 2"
-                />
+                <label htmlFor="buy-baths" className={labelClass}>Baths</label>
+                <input id="buy-baths" type="text" value={baths} onChange={(e) => setBaths(e.target.value)} className={inputClass} placeholder="e.g. 2" />
               </div>
             </div>
             <div className="mt-4">
-              <label htmlFor="buy-timeline" className="block text-xs font-medium text-[var(--muted)]">
-                Timeline
-              </label>
-              <input
-                id="buy-timeline"
-                type="text"
-                value={timeline}
-                onChange={(e) => setTimeline(e.target.value)}
-                className={inputClass}
-                placeholder="e.g. Next 3 months, flexible"
-              />
+              <label htmlFor="buy-timeline" className={labelClass}>Timeline</label>
+              <input id="buy-timeline" type="text" value={timeline} onChange={(e) => setTimeline(e.target.value)} className={inputClass} placeholder="e.g. Next 3 months, flexible" />
             </div>
           </div>
 
           <div>
-            <label htmlFor="buy-message" className="block text-sm font-medium text-[var(--foreground)]">
-              Additional details
-            </label>
-            <textarea
-              id="buy-message"
-              rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className={inputClass}
-              placeholder="Must-haves, deal-breakers, or anything else we should know..."
-            />
+            <label htmlFor="buy-message" className={labelClass}>Additional details</label>
+            <textarea id="buy-message" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} className={inputClass} placeholder="Must-haves, deal-breakers, or anything else we should know..." />
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
-              {error}
-            </div>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 transition"
-          >
-            {loading ? "Sending…" : "Get started"}
+          <button type="submit" disabled={loading} className="inline-flex w-full h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60">
+            {loading ? "Sending…" : <><span>Get started</span><ArrowIcon /></>}
           </button>
         </form>
       )}

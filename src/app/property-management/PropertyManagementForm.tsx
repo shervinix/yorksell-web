@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 
+const labelClass = "block text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-white/[0.12] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder-[var(--muted)]/60 outline-none transition focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20";
+
+const ArrowIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden="true">
+    <path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default function PropertyManagementForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -47,24 +57,14 @@ export default function PropertyManagementForm() {
         return;
       }
       setSent(true);
-      setName("");
-      setEmail("");
-      setPhone("");
-      setPropertyAddress("");
-      setPropertyType("");
-      setUnitCount("");
-      setStatus("");
-      setInterestedTier("");
-      setMessage("");
+      setName(""); setEmail(""); setPhone(""); setPropertyAddress(""); setPropertyType("");
+      setUnitCount(""); setStatus(""); setInterestedTier(""); setMessage("");
     } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
-
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2.5 text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)]/50";
 
   return (
     <div className="text-[var(--foreground)]">
@@ -76,7 +76,7 @@ export default function PropertyManagementForm() {
       </p>
 
       {sent ? (
-        <div className="mt-8 rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
+        <div className="mt-8 rounded-2xl border border-white/[0.08] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
           <p className="font-medium text-[var(--foreground)]">Thanks! We&apos;ll reach out soon to discuss your property.</p>
           <p className="mt-2 text-sm text-[var(--muted)]">
             <button type="button" onClick={() => setSent(false)} className="font-medium text-[var(--accent)] hover:underline">
@@ -88,75 +88,30 @@ export default function PropertyManagementForm() {
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor="pm-name" className="block text-sm font-medium text-[var(--foreground)]">
-                Name
-              </label>
-              <input
-                id="pm-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={inputClass}
-                placeholder="Your name"
-              />
+              <label htmlFor="pm-name" className={labelClass}>Name</label>
+              <input id="pm-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Your name" />
             </div>
             <div>
-              <label htmlFor="pm-email" className="block text-sm font-medium text-[var(--foreground)]">
-                Email <span className="text-[var(--muted)]">(required)</span>
-              </label>
-              <input
-                id="pm-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                placeholder="you@example.com"
-              />
+              <label htmlFor="pm-email" className={labelClass}>Email</label>
+              <input id="pm-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="you@example.com" />
             </div>
           </div>
           <div>
-            <label htmlFor="pm-phone" className="block text-sm font-medium text-[var(--foreground)]">
-              Phone <span className="text-[var(--muted)]">(required)</span>
-            </label>
-            <input
-              id="pm-phone"
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={inputClass}
-              placeholder="Best number to reach you"
-            />
+            <label htmlFor="pm-phone" className={labelClass}>Phone</label>
+            <input id="pm-phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="Best number to reach you" />
           </div>
 
-          <div className="rounded-xl border border-white/[0.06] bg-[var(--surface)] p-4">
-            <p className="text-sm font-medium text-[var(--foreground)]">Property details</p>
+          <div className="rounded-xl border border-white/[0.1] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Property details</p>
             <div className="mt-4 space-y-4">
               <div>
-                <label htmlFor="pm-address" className="block text-xs font-medium text-[var(--muted)]">
-                  Property address
-                </label>
-                <input
-                  id="pm-address"
-                  type="text"
-                  value={propertyAddress}
-                  onChange={(e) => setPropertyAddress(e.target.value)}
-                  className={inputClass}
-                  placeholder="e.g. 123 Main St, Toronto"
-                />
+                <label htmlFor="pm-address" className={labelClass}>Property address</label>
+                <input id="pm-address" type="text" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} className={inputClass} placeholder="e.g. 123 Main St, Toronto" />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="pm-type" className="block text-xs font-medium text-[var(--muted)]">
-                    Property type
-                  </label>
-                  <select
-                    id="pm-type"
-                    value={propertyType}
-                    onChange={(e) => setPropertyType(e.target.value)}
-                    className={inputClass}
-                  >
+                  <label htmlFor="pm-type" className={labelClass}>Property type</label>
+                  <select id="pm-type" value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className={inputClass}>
                     <option value="">Select type</option>
                     <option value="single-family">Single-family home</option>
                     <option value="duplex">Duplex</option>
@@ -167,29 +122,13 @@ export default function PropertyManagementForm() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="pm-units" className="block text-xs font-medium text-[var(--muted)]">
-                    Number of units
-                  </label>
-                  <input
-                    id="pm-units"
-                    type="text"
-                    value={unitCount}
-                    onChange={(e) => setUnitCount(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. 1, 2, 4"
-                  />
+                  <label htmlFor="pm-units" className={labelClass}>Number of units</label>
+                  <input id="pm-units" type="text" value={unitCount} onChange={(e) => setUnitCount(e.target.value)} className={inputClass} placeholder="e.g. 1, 2, 4" />
                 </div>
               </div>
               <div>
-                <label htmlFor="pm-status" className="block text-xs font-medium text-[var(--muted)]">
-                  Current status
-                </label>
-                <select
-                  id="pm-status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className={inputClass}
-                >
+                <label htmlFor="pm-status" className={labelClass}>Current status</label>
+                <select id="pm-status" value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
                   <option value="">Select status</option>
                   <option value="occupied">Occupied</option>
                   <option value="vacant">Vacant</option>
@@ -198,15 +137,8 @@ export default function PropertyManagementForm() {
                 </select>
               </div>
               <div>
-                <label htmlFor="pm-tier" className="block text-xs font-medium text-[var(--muted)]">
-                  Interested in tier
-                </label>
-                <select
-                  id="pm-tier"
-                  value={interestedTier}
-                  onChange={(e) => setInterestedTier(e.target.value)}
-                  className={inputClass}
-                >
+                <label htmlFor="pm-tier" className={labelClass}>Interested in tier</label>
+                <select id="pm-tier" value={interestedTier} onChange={(e) => setInterestedTier(e.target.value)} className={inputClass}>
                   <option value="">Select tier</option>
                   <option value="essential">Essential</option>
                   <option value="full-service">Full Service</option>
@@ -217,30 +149,15 @@ export default function PropertyManagementForm() {
           </div>
 
           <div>
-            <label htmlFor="pm-message" className="block text-sm font-medium text-[var(--foreground)]">
-              Additional details
-            </label>
-            <textarea
-              id="pm-message"
-              rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className={inputClass}
-              placeholder="Current management, special requirements, timeline, or anything else we should know..."
-            />
+            <label htmlFor="pm-message" className={labelClass}>Additional details</label>
+            <textarea id="pm-message" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} className={inputClass} placeholder="Current management, special requirements, timeline, or anything else we should know..." />
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
-              {error}
-            </div>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 transition"
-          >
-            {loading ? "Sending…" : "Get a free consultation"}
+          <button type="submit" disabled={loading} className="inline-flex w-full h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60">
+            {loading ? "Sending…" : <><span>Get a free consultation</span><ArrowIcon /></>}
           </button>
         </form>
       )}

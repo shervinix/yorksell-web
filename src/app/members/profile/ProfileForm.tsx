@@ -14,6 +14,10 @@ type ProfileFormProps = {
   };
 };
 
+const labelClass = "block text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-white/[0.12] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder-[var(--muted)]/60 outline-none transition focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20";
+
 export function ProfileForm({ initial }: ProfileFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initial.name ?? "");
@@ -54,109 +58,44 @@ export function ProfileForm({ initial }: ProfileFormProps) {
     }
   }
 
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-white/10 bg-[var(--surface)] px-3 py-2.5 text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]";
-
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Name
-        </label>
-        <input
-          type="text"
-          className={inputClass}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-        />
+        <label className={labelClass}>Name</label>
+        <input type="text" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
       </div>
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Email
-        </label>
-        <input
-          type="email"
-          className={inputClass + " opacity-70"}
-          value={initial.email ?? ""}
-          disabled
-          title="Email cannot be changed here"
-        />
+        <label className={labelClass}>Email</label>
+        <input type="email" className={inputClass + " opacity-60 cursor-not-allowed"} value={initial.email ?? ""} disabled title="Email cannot be changed here" />
         <p className="mt-1 text-xs text-[var(--muted)]">Email cannot be changed here.</p>
       </div>
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Phone
-        </label>
-        <input
-          type="tel"
-          className={inputClass}
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="(416) 555-0000"
-        />
+        <label className={labelClass}>Phone</label>
+        <input type="tel" className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(416) 555-0000" />
       </div>
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Company
-        </label>
-        <input
-          type="text"
-          className={inputClass}
-          value={company}
-          onChange={(e) => setCompany(e.target.value)}
-          placeholder="Company or brokerage"
-        />
+        <label className={labelClass}>Company</label>
+        <input type="text" className={inputClass} value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company or brokerage" />
       </div>
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Address
-        </label>
-        <input
-          type="text"
-          className={inputClass}
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Street, city, postal code"
-        />
+        <label className={labelClass}>Address</label>
+        <input type="text" className={inputClass} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city, postal code" />
       </div>
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Profile photo URL
-        </label>
-        <input
-          type="url"
-          className={inputClass}
-          value={image}
-          onChange={(e) => setImage(e.target.value)}
-          placeholder="https://..."
-        />
+        <label className={labelClass}>Profile photo URL</label>
+        <input type="url" className={inputClass} value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://..." />
         {image && (
           <div className="mt-2 flex items-center gap-3">
-            <img
-              src={image}
-              alt=""
-              className="h-14 w-14 rounded-full object-cover border border-white/10"
-              onError={(e) => (e.currentTarget.style.display = "none")}
-            />
+            <img src={image} alt="" className="h-14 w-14 rounded-full object-cover border border-white/10" onError={(e) => (e.currentTarget.style.display = "none")} />
           </div>
         )}
       </div>
       {message && (
-        <p
-          className={
-            "text-sm " +
-            (message.type === "success" ? "text-green-500" : "text-red-400")
-          }
-        >
+        <p className={"text-sm " + (message.type === "success" ? "text-green-500" : "text-red-400")}>
           {message.text}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={saving}
-        className="inline-flex h-11 items-center justify-center rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
-      >
+      <button type="submit" disabled={saving} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60">
         {saving ? "Saving…" : "Save changes"}
       </button>
     </form>

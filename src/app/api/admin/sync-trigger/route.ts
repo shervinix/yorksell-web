@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   const url = `${base.startsWith("http") ? base : `https://${base}`}/api/mls/sync?limit=${limit}&pages=${pages}${dryRun ? "&dryRun=1" : ""}${fetchDetails ? "&fetchDetails=1" : ""}`;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (key) headers["x-mls-sync-key"] = key;
+  if (key) headers["Authorization"] = `Bearer ${key}`;
 
   const res = await fetch(url, { method: "POST", headers });
   const data = await res.json().catch(() => ({}));

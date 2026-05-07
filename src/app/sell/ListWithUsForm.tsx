@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 
+const labelClass = "block text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-white/[0.12] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder-[var(--muted)]/60 outline-none transition focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20";
+
+const ArrowIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden="true">
+    <path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default function ListWithUsForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -51,26 +61,14 @@ export default function ListWithUsForm() {
         return;
       }
       setSent(true);
-      setName("");
-      setEmail("");
-      setPhone("");
-      setAddress("");
-      setCity("");
-      setPropertyType("");
-      setBeds("");
-      setBaths("");
-      setSqft("");
-      setYearBuilt("");
-      setMessage("");
+      setName(""); setEmail(""); setPhone(""); setAddress(""); setCity("");
+      setPropertyType(""); setBeds(""); setBaths(""); setSqft(""); setYearBuilt(""); setMessage("");
     } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
-
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2.5 text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)]/50";
 
   return (
     <div className="text-[var(--foreground)]">
@@ -82,7 +80,7 @@ export default function ListWithUsForm() {
       </p>
 
       {sent ? (
-        <div className="mt-8 rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
+        <div className="mt-8 rounded-2xl border border-white/[0.08] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
           <p className="font-medium text-[var(--foreground)]">Thanks! We&apos;ll reach out soon to discuss listing your property.</p>
           <p className="mt-2 text-sm text-[var(--muted)]">
             <button type="button" onClick={() => setSent(false)} className="font-medium text-[var(--accent)] hover:underline">
@@ -94,89 +92,35 @@ export default function ListWithUsForm() {
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor="list-name" className="block text-sm font-medium text-[var(--foreground)]">
-                Name
-              </label>
-              <input
-                id="list-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={inputClass}
-                placeholder="Your name"
-              />
+              <label htmlFor="list-name" className={labelClass}>Name</label>
+              <input id="list-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Your name" />
             </div>
             <div>
-              <label htmlFor="list-email" className="block text-sm font-medium text-[var(--foreground)]">
-                Email <span className="text-[var(--muted)]">(required)</span>
-              </label>
-              <input
-                id="list-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                placeholder="you@example.com"
-              />
+              <label htmlFor="list-email" className={labelClass}>Email</label>
+              <input id="list-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="you@example.com" />
             </div>
           </div>
           <div>
-            <label htmlFor="list-phone" className="block text-sm font-medium text-[var(--foreground)]">
-              Phone <span className="text-[var(--muted)]">(required)</span>
-            </label>
-            <input
-              id="list-phone"
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={inputClass}
-              placeholder="Best number to reach you"
-            />
+            <label htmlFor="list-phone" className={labelClass}>Phone</label>
+            <input id="list-phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="Best number to reach you" />
           </div>
 
-          <div className="rounded-xl border border-white/[0.06] bg-[var(--surface)] p-4">
-            <p className="text-sm font-medium text-[var(--foreground)]">Property details</p>
+          <div className="rounded-xl border border-white/[0.1] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Property details</p>
             <div className="mt-4 space-y-4">
               <div>
-                <label htmlFor="list-address" className="block text-xs font-medium text-[var(--muted)]">
-                  Address
-                </label>
-                <input
-                  id="list-address"
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className={inputClass}
-                  placeholder="Street address"
-                />
+                <label htmlFor="list-address" className={labelClass}>Address</label>
+                <input id="list-address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} placeholder="Street address" />
               </div>
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="list-city" className="block text-xs font-medium text-[var(--muted)]">
-                    City
-                  </label>
-                  <input
-                    id="list-city"
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. Toronto, North York"
-                  />
+                  <label htmlFor="list-city" className={labelClass}>City</label>
+                  <input id="list-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} placeholder="e.g. Toronto, North York" />
                 </div>
                 <div>
-                  <label htmlFor="list-type" className="block text-xs font-medium text-[var(--muted)]">
-                    Property type
-                  </label>
-                  <select
-                    id="list-type"
-                    value={propertyType}
-                    onChange={(e) => setPropertyType(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Select...</option>
+                  <label htmlFor="list-type" className={labelClass}>Property type</label>
+                  <select id="list-type" value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className={inputClass}>
+                    <option value="">Select…</option>
                     <option value="Condo">Condo</option>
                     <option value="Townhouse">Townhouse</option>
                     <option value="Detached">Detached</option>
@@ -187,86 +131,35 @@ export default function ListWithUsForm() {
               </div>
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <label htmlFor="list-beds" className="block text-xs font-medium text-[var(--muted)]">
-                    Beds
-                  </label>
-                  <input
-                    id="list-beds"
-                    type="text"
-                    value={beds}
-                    onChange={(e) => setBeds(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. 3"
-                  />
+                  <label htmlFor="list-beds" className={labelClass}>Beds</label>
+                  <input id="list-beds" type="text" value={beds} onChange={(e) => setBeds(e.target.value)} className={inputClass} placeholder="e.g. 3" />
                 </div>
                 <div>
-                  <label htmlFor="list-baths" className="block text-xs font-medium text-[var(--muted)]">
-                    Baths
-                  </label>
-                  <input
-                    id="list-baths"
-                    type="text"
-                    value={baths}
-                    onChange={(e) => setBaths(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. 2"
-                  />
+                  <label htmlFor="list-baths" className={labelClass}>Baths</label>
+                  <input id="list-baths" type="text" value={baths} onChange={(e) => setBaths(e.target.value)} className={inputClass} placeholder="e.g. 2" />
                 </div>
                 <div>
-                  <label htmlFor="list-sqft" className="block text-xs font-medium text-[var(--muted)]">
-                    Sq ft
-                  </label>
-                  <input
-                    id="list-sqft"
-                    type="text"
-                    value={sqft}
-                    onChange={(e) => setSqft(e.target.value)}
-                    className={inputClass}
-                    placeholder="Optional"
-                  />
+                  <label htmlFor="list-sqft" className={labelClass}>Sq ft</label>
+                  <input id="list-sqft" type="text" value={sqft} onChange={(e) => setSqft(e.target.value)} className={inputClass} placeholder="Optional" />
                 </div>
                 <div>
-                  <label htmlFor="list-year" className="block text-xs font-medium text-[var(--muted)]">
-                    Year built
-                  </label>
-                  <input
-                    id="list-year"
-                    type="text"
-                    value={yearBuilt}
-                    onChange={(e) => setYearBuilt(e.target.value)}
-                    className={inputClass}
-                    placeholder="Optional"
-                  />
+                  <label htmlFor="list-year" className={labelClass}>Year built</label>
+                  <input id="list-year" type="text" value={yearBuilt} onChange={(e) => setYearBuilt(e.target.value)} className={inputClass} placeholder="Optional" />
                 </div>
               </div>
             </div>
           </div>
 
           <div>
-            <label htmlFor="list-message" className="block text-sm font-medium text-[var(--foreground)]">
-              Additional details
-            </label>
-            <textarea
-              id="list-message"
-              rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className={inputClass}
-              placeholder="Timeline to sell, renovations, special features, or anything else we should know..."
-            />
+            <label htmlFor="list-message" className={labelClass}>Additional details</label>
+            <textarea id="list-message" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} className={inputClass} placeholder="Timeline to sell, renovations, special features, or anything else we should know..." />
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
-              {error}
-            </div>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 transition"
-          >
-            {loading ? "Sending…" : "Get in touch — let&apos;s list your property"}
+          <button type="submit" disabled={loading} className="inline-flex w-full h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60">
+            {loading ? "Sending…" : <><span>Get in touch — let&apos;s list your property</span><ArrowIcon /></>}
           </button>
         </form>
       )}

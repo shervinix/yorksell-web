@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
   const base = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL ?? "http://localhost:3000";
   const url = `${base.startsWith("http") ? base : `https://${base}`}/api/mls/sync?limit=500&pages=10&fetchDetails=1`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (syncKey) headers["x-mls-sync-key"] = syncKey;
+  if (syncKey) headers["Authorization"] = `Bearer ${syncKey}`;
 
   const res = await fetch(url, { method: "POST", headers });
   const data = await res.json().catch(() => ({}));

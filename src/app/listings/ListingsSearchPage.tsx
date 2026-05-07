@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ListingListItem } from "@/app/api/listings/route";
+import { formatPrice, formatBedsBaths, toListingCardFromResult, type ListingCard } from "@/lib/listings";
+import { ListingCard as ListingCardComponent } from "./ListingCard";
+import { ListingsSkeleton } from "./ListingsSkeleton";
 import ListingsMapClient from "./ListingsMapClient";
 
 const PAGE_SIZE = 24;
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80";
 
 const PROPERTY_TYPES = [
   { value: "", label: "Any" },
@@ -20,86 +21,6 @@ const PROPERTY_TYPES = [
   { value: "Other", label: "Other" },
 ];
 
-type FeaturedApiListing = {
-  id: string;
-  mlsNumber: string | null;
-  status: string | null;
-  addressLine: string | null;
-  city: string | null;
-  province: string | null;
-  postalCode: string | null;
-  price: number | null;
-  beds: number | null;
-  baths: number | null;
-  propertyType: string | null;
-  photoUrl: string | null;
-};
-
-type FeaturedListingCard = {
-  id: string;
-  href: string;
-  title: string;
-  price: string;
-  meta: string;
-  location: string;
-  image: string;
-};
-
-const FEATURED_FALLBACK: FeaturedListingCard[] = [
-  {
-    id: "featured-1",
-    href: "/listings/featured-1",
-    title: "Modern Condo • Waterfront",
-    price: "$999,000",
-    meta: "2 Bed • 2 Bath • 1 Parking",
-    location: "Toronto, ON",
-    image:
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    id: "featured-2",
-    href: "/listings/featured-2",
-    title: "Family Home • Ravine Lot",
-    price: "$2,495,000",
-    meta: "4+1 Bed • 4 Bath",
-    location: "North York, ON",
-    image:
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    id: "featured-3",
-    href: "/listings/featured-3",
-    title: "Luxury Townhome • End Unit",
-    price: "$1,399,000",
-    meta: "3 Bed • 3 Bath • 2 Parking",
-    location: "Etobicoke, ON",
-    image:
-      "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1600&q=80",
-  },
-];
-
-function formatPrice(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0)
-    return "Contact";
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency: "CAD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatBedsBaths(
-  beds: number | null | undefined,
-  baths: number | null | undefined
-) {
-  const parts: string[] = [];
-  if (typeof beds === "number" && Number.isFinite(beds))
-    parts.push(`${beds} Bed`);
-  if (typeof baths === "number" && Number.isFinite(baths))
-    parts.push(`${baths} Bath`);
-  return parts.length ? parts.join(" • ") : "";
-}
-
 type QueryParam = string | number | undefined | string[];
 
 function buildQueryString(params: Record<string, QueryParam>) {
@@ -107,7 +28,9 @@ function buildQueryString(params: Record<string, QueryParam>) {
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined) continue;
     if (Array.isArray(v)) {
-      v.filter((x) => x !== undefined && x !== "" && String(x).trim() !== "").forEach((x) => q.append(k, String(x)));
+      v.filter((x) => x !== undefined && x !== "" && String(x).trim() !== "").forEach((x) =>
+        q.append(k, String(x))
+      );
     } else if (v !== "" && String(v).trim() !== "") {
       q.set(k, String(v));
     }
@@ -115,7 +38,11 @@ function buildQueryString(params: Record<string, QueryParam>) {
   return q.toString();
 }
 
-export default function ListingsSearchPage() {
+export default function ListingsSearchPage({
+  initialFeatured = [],
+}: {
+  initialFeatured?: ListingCard[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -138,10 +65,6 @@ export default function ListingsSearchPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [bedBathOpen, setBedBathOpen] = useState(false);
   const bedBathRef = useRef<HTMLDivElement>(null);
-  const [featured, setFeatured] = useState<FeaturedListingCard[]>(FEATURED_FALLBACK);
-  const [featuredFromApi, setFeaturedFromApi] = useState(false);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
-  const [featuredError, setFeaturedError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!bedBathOpen) return;
@@ -154,7 +77,6 @@ export default function ListingsSearchPage() {
     return () => document.removeEventListener("click", onDocClick, true);
   }, [bedBathOpen]);
 
-  // Serialize array params so useMemo/useEffect don't see new refs every render (avoids infinite refetch loop)
   const bedsKey = beds.slice().sort().join(",");
   const bathsKey = baths.slice().sort().join(",");
   const densKey = dens.slice().sort().join(",");
@@ -173,87 +95,16 @@ export default function ListingsSearchPage() {
     if (city.trim()) p.set("city", city.trim());
     if (propertyType.trim()) p.set("propertyType", propertyType.trim());
     return p;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, minPrice, maxPrice, bedsKey, bathsKey, densKey, city, propertyType, sort, page]);
 
   const fetchKey = apiParams.toString();
-
-  // Load featured listings (same as homepage) once on mount
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      try {
-        setFeaturedLoading(true);
-        setFeaturedError(null);
-
-        const res = await fetch("/api/listings/featured", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to load featured listings (${res.status})`);
-        }
-
-        const data = (await res.json()) as { listings?: unknown };
-        const raw = Array.isArray((data as any)?.listings) ? ((data as any).listings as unknown[]) : [];
-
-        const mapped: FeaturedListingCard[] = raw
-          .filter(Boolean)
-          .map((x) => {
-            const l = x as FeaturedApiListing;
-            const title =
-              (l.addressLine && l.addressLine.trim()) ||
-              (l.propertyType && l.propertyType.trim()) ||
-              (l.mlsNumber && `Listing ${l.mlsNumber}`) ||
-              "Listing";
-            const location = [l.city, l.province].filter(Boolean).join(", ") || "";
-            const meta = formatBedsBaths(l.beds, l.baths);
-            const price = formatPrice(l.price);
-            const image =
-              (l.photoUrl && l.photoUrl.trim()) ||
-              "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80";
-            const slug = (l.mlsNumber && l.mlsNumber.trim()) || l.id;
-            const href = `/listings/${encodeURIComponent(slug)}`;
-            return {
-              id: l.id,
-              href,
-              title,
-              price,
-              meta,
-              location,
-              image,
-            };
-          })
-          .slice(0, 3);
-
-        if (!cancelled && mapped.length > 0) {
-          setFeatured(mapped);
-          setFeaturedFromApi(true);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          const msg = e instanceof Error ? e.message : "Failed to load featured listings";
-          setFeaturedError(msg);
-        }
-      } finally {
-        if (!cancelled) setFeaturedLoading(false);
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const url = `/api/listings?${fetchKey}`;
-    fetch(url, { method: "GET" })
+    fetch(`/api/listings?${fetchKey}`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.json();
@@ -290,17 +141,13 @@ export default function ListingsSearchPage() {
         dens: overrides.dens !== undefined ? overrides.dens : dens,
         city: overrides.city !== undefined ? overrides.city : city,
         propertyType:
-          overrides.propertyType !== undefined
-            ? overrides.propertyType
-            : propertyType,
+          overrides.propertyType !== undefined ? overrides.propertyType : propertyType,
         sort: overrides.sort !== undefined ? overrides.sort : sort,
         page: overrides.page !== undefined ? overrides.page : page,
         view: overrides.view !== undefined ? overrides.view : view,
       };
       const query = buildQueryString(next);
-      router.replace(query ? `/listings?${query}` : "/listings", {
-        scroll: false,
-      });
+      router.replace(query ? `/listings?${query}` : "/listings", { scroll: false });
     },
     [q, minPrice, maxPrice, beds, baths, dens, city, propertyType, sort, page, view, router]
   );
@@ -311,61 +158,23 @@ export default function ListingsSearchPage() {
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-14">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Listings
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Listings</h1>
           <p className="mt-2 text-[var(--muted)]">
             Yorksell Real Estate Group & ROYAL LEPAGE REAL ESTATE SERVICES LTD.
           </p>
         </div>
 
-        {/* Featured listings (same as homepage) */}
-        {featured.length > 0 && (
+        {/* Featured listings — server-rendered, no client fetch */}
+        {initialFeatured.length > 0 && (
           <section className="mb-8">
             <h2 className="mb-4 text-base font-semibold text-[var(--foreground)]">
               Featured Listings
             </h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((l) => (
-                <article
-                  key={l.id}
-                  className="group overflow-hidden rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] shadow-[0_4px_24px_rgba(0,0,0,0.2)] transition hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
-                >
-                  <Link href={l.href} className="block">
-                    <div className="relative aspect-[4/3] w-full overflow-hidden">
-                      <img
-                        src={l.image}
-                        alt=""
-                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      />
-                      <div className="absolute right-3 top-3 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-                        {l.price}
-                      </div>
-                    </div>
-                    <div className="p-5">
-                      <h3 className="font-semibold text-[var(--foreground)]">{l.title}</h3>
-                      {l.meta && (
-                        <p className="mt-1 text-sm text-[var(--muted)]">{l.meta}</p>
-                      )}
-                      {l.location && (
-                        <p className="mt-0.5 text-xs text-[var(--muted)]">{l.location}</p>
-                      )}
-                      <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)]">
-                        View details <span aria-hidden>→</span>
-                      </span>
-                    </div>
-                  </Link>
-                </article>
+              {initialFeatured.map((l) => (
+                <ListingCardComponent key={l.id} listing={l} />
               ))}
             </div>
-            {(featuredLoading || featuredError) && (
-              <p className="mt-3 text-xs text-[var(--muted)]">
-                {featuredLoading
-                  ? "Loading featured listings…"
-                  : featuredError ?? "Featured listings may be temporarily unavailable."}
-              </p>
-            )}
           </section>
         )}
 
@@ -376,8 +185,7 @@ export default function ListingsSearchPage() {
             e.preventDefault();
             const form = e.currentTarget;
             const qInput = form.querySelector<HTMLInputElement>('input[name="q"]');
-            const val = qInput?.value?.trim() ?? "";
-            updateUrl({ q: val, page: 1 });
+            updateUrl({ q: qInput?.value?.trim() ?? "", page: 1 });
           }}
         >
           <div className="flex gap-3">
@@ -398,7 +206,7 @@ export default function ListingsSearchPage() {
           </div>
         </form>
 
-        {/* Filters toggle + panel */}
+        {/* Filters panel */}
         {filtersOpen && (
           <form
             method="get"
@@ -423,208 +231,185 @@ export default function ListingsSearchPage() {
           >
             <input type="hidden" name="q" value={q} />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-            <div>
-              <label
-                htmlFor="city"
-                className="block text-xs font-medium text-[var(--muted)]"
-              >
-                City
-              </label>
-              <input
-                id="city"
-                name="city"
-                type="text"
-                defaultValue={city}
-                placeholder="e.g. Toronto"
-                className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)]"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="minPrice"
-                className="block text-xs font-medium text-[var(--muted)]"
-              >
-                Min price
-              </label>
-              <input
-                id="minPrice"
-                name="minPrice"
-                type="number"
-                min={0}
-                step={10000}
-                defaultValue={minPrice || undefined}
-                placeholder="0"
-                className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="maxPrice"
-                className="block text-xs font-medium text-[var(--muted)]"
-              >
-                Max price
-              </label>
-              <input
-                id="maxPrice"
-                name="maxPrice"
-                type="number"
-                min={0}
-                step={10000}
-                defaultValue={maxPrice || undefined}
-                placeholder="Any"
-                className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
-              />
-            </div>
-            <div className="relative" ref={bedBathRef}>
-              <label className="block text-xs font-medium text-[var(--muted)]">Bed & Bath</label>
-              <button
-                type="button"
-                onClick={() => setBedBathOpen((o) => !o)}
-                className="mt-1 flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-left text-sm text-[var(--foreground)]"
-                aria-expanded={bedBathOpen}
-                aria-haspopup="listbox"
-              >
-                <span>
-                  {beds.length + baths.length + dens.length === 0
-                    ? "Any"
-                    : [beds.length && "Bed", baths.length && "Bath", dens.length && "Dens"].filter(Boolean).join(", ")}
-                </span>
-                <svg
-                  className={`h-4 w-4 shrink-0 text-[var(--muted)] transition-transform ${bedBathOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
+              <div>
+                <label htmlFor="city" className="block text-xs font-medium text-[var(--muted)]">
+                  City
+                </label>
+                <input
+                  id="city"
+                  name="city"
+                  type="text"
+                  defaultValue={city}
+                  placeholder="e.g. Toronto"
+                  className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)]"
+                />
+              </div>
+              <div>
+                <label htmlFor="minPrice" className="block text-xs font-medium text-[var(--muted)]">
+                  Min price
+                </label>
+                <input
+                  id="minPrice"
+                  name="minPrice"
+                  type="number"
+                  min={0}
+                  step={10000}
+                  defaultValue={minPrice || undefined}
+                  placeholder="0"
+                  className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
+                />
+              </div>
+              <div>
+                <label htmlFor="maxPrice" className="block text-xs font-medium text-[var(--muted)]">
+                  Max price
+                </label>
+                <input
+                  id="maxPrice"
+                  name="maxPrice"
+                  type="number"
+                  min={0}
+                  step={10000}
+                  defaultValue={maxPrice || undefined}
+                  placeholder="Any"
+                  className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
+                />
+              </div>
+              <div className="relative" ref={bedBathRef}>
+                <label className="block text-xs font-medium text-[var(--muted)]">Bed & Bath</label>
+                <button
+                  type="button"
+                  onClick={() => setBedBathOpen((o) => !o)}
+                  className="mt-1 flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-left text-sm text-[var(--foreground)]"
+                  aria-expanded={bedBathOpen}
+                  aria-haspopup="listbox"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {bedBathOpen && (
-                <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] p-3 shadow-lg">
-                  {/* Line 1: Bedrooms */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-[var(--muted)] w-20 shrink-0">Bedrooms</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {["1", "2", "3", "4", "5"].map((n) => {
-                        const selected = beds.includes(n);
-                        return (
-                          <button
-                            key={n}
-                            type="button"
-                            name="beds"
-                            value={n}
-                            onClick={() => {
-                              const next = selected ? beds.filter((b) => b !== n) : [...beds, n];
-                              updateUrl({ beds: next, page: 1 });
-                            }}
-                            className={`min-w-[2rem] rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
-                              selected
-                                ? "bg-[var(--accent)] text-white"
-                                : "bg-[var(--surface)] text-[var(--foreground)] border border-white/[0.12] hover:border-white/20"
-                            }`}
-                          >
-                            {n === "5" ? "5+" : n}
-                          </button>
-                        );
-                      })}
+                  <span>
+                    {beds.length + baths.length + dens.length === 0
+                      ? "Any"
+                      : [beds.length && "Bed", baths.length && "Bath", dens.length && "Dens"]
+                          .filter(Boolean)
+                          .join(", ")}
+                  </span>
+                  <svg
+                    className={`h-4 w-4 shrink-0 text-[var(--muted)] transition-transform ${bedBathOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {bedBathOpen && (
+                  <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] p-3 shadow-lg">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="w-20 shrink-0 text-xs font-medium text-[var(--muted)]">Bedrooms</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["1", "2", "3", "4", "5"].map((n) => {
+                          const selected = beds.includes(n);
+                          return (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => {
+                                const next = selected ? beds.filter((b) => b !== n) : [...beds, n];
+                                updateUrl({ beds: next, page: 1 });
+                              }}
+                              className={`min-w-[2rem] rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
+                                selected
+                                  ? "bg-[var(--accent)] text-white"
+                                  : "border border-white/[0.12] bg-[var(--surface)] text-[var(--foreground)] hover:border-white/20"
+                              }`}
+                            >
+                              {n === "5" ? "5+" : n}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+                      <span className="w-20 shrink-0 text-xs font-medium text-[var(--muted)]">Bedrooms +</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["1", "2", "3", "4", "5"].map((n) => {
+                          const selected = dens.includes(n);
+                          return (
+                            <button
+                              key={`den-${n}`}
+                              type="button"
+                              onClick={() => {
+                                const next = selected ? dens.filter((d) => d !== n) : [...dens, n];
+                                updateUrl({ dens: next, page: 1 });
+                              }}
+                              className={`min-w-[2rem] rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
+                                selected
+                                  ? "bg-[var(--accent)] text-white"
+                                  : "border border-white/[0.12] bg-[var(--surface)] text-[var(--foreground)] hover:border-white/20"
+                              }`}
+                            >
+                              {n === "5" ? "5+" : n}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+                      <span className="w-20 shrink-0 text-xs font-medium text-[var(--muted)]">Bathrooms</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["1", "2", "3", "4", "5"].map((b) => {
+                          const selected = baths.includes(b);
+                          return (
+                            <button
+                              key={b}
+                              type="button"
+                              onClick={() => {
+                                const next = selected ? baths.filter((x) => x !== b) : [...baths, b];
+                                updateUrl({ baths: next, page: 1 });
+                              }}
+                              className={`min-w-[2rem] rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
+                                selected
+                                  ? "bg-[var(--accent)] text-white"
+                                  : "border border-white/[0.12] bg-[var(--surface)] text-[var(--foreground)] hover:border-white/20"
+                              }`}
+                            >
+                              {b === "5" ? "5+" : b}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                  {/* Line 2: Bedrooms + */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-                    <span className="text-xs font-medium text-[var(--muted)] w-20 shrink-0">Bedrooms +</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {["1", "2", "3", "4", "5"].map((n) => {
-                        const selected = dens.includes(n);
-                        return (
-                          <button
-                            key={`den-${n}`}
-                            type="button"
-                            name="dens"
-                            value={n}
-                            onClick={() => {
-                              const next = selected ? dens.filter((d) => d !== n) : [...dens, n];
-                              updateUrl({ dens: next, page: 1 });
-                            }}
-                            className={`min-w-[2rem] rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
-                              selected
-                                ? "bg-[var(--accent)] text-white"
-                                : "bg-[var(--surface)] text-[var(--foreground)] border border-white/[0.12] hover:border-white/20"
-                            }`}
-                          >
-                            {n === "5" ? "5+" : n}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {/* Line 3: Bathrooms */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-                    <span className="text-xs font-medium text-[var(--muted)] w-20 shrink-0">Bathrooms</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {["1", "2", "3", "4", "5"].map((b) => {
-                        const selected = baths.includes(b);
-                        return (
-                          <button
-                            key={b}
-                            type="button"
-                            name="baths"
-                            value={b}
-                            onClick={() => {
-                              const next = selected ? baths.filter((x) => x !== b) : [...baths, b];
-                              updateUrl({ baths: next, page: 1 });
-                            }}
-                            className={`min-w-[2rem] rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
-                              selected
-                                ? "bg-[var(--accent)] text-white"
-                                : "bg-[var(--surface)] text-[var(--foreground)] border border-white/[0.12] hover:border-white/20"
-                            }`}
-                          >
-                            {b === "5" ? "5+" : b}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {/* Hidden inputs for form submit (Apply filters) */}
-              {beds.map((b) => (
-                <input type="hidden" name="beds" value={b} key={`beds-${b}`} />
-              ))}
-              {baths.map((b) => (
-                <input type="hidden" name="baths" value={b} key={`baths-${b}`} />
-              ))}
-              {dens.map((d) => (
-                <input type="hidden" name="dens" value={d} key={`dens-${d}`} />
-              ))}
-            </div>
-            <div>
-              <label
-                htmlFor="propertyType"
-                className="block text-xs font-medium text-[var(--muted)]"
-              >
-                Property type
-              </label>
-              <select
-                id="propertyType"
-                name="propertyType"
-                defaultValue={propertyType || ""}
-                className="select-arrow mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
-              >
-                {PROPERTY_TYPES.map((opt) => (
-                  <option key={opt.value || "any"} value={opt.value}>
-                    {opt.label}
-                  </option>
+                )}
+                {beds.map((b) => (
+                  <input type="hidden" name="beds" value={b} key={`beds-${b}`} />
                 ))}
-              </select>
-            </div>
+                {baths.map((b) => (
+                  <input type="hidden" name="baths" value={b} key={`baths-${b}`} />
+                ))}
+                {dens.map((d) => (
+                  <input type="hidden" name="dens" value={d} key={`dens-${d}`} />
+                ))}
+              </div>
+              <div>
+                <label htmlFor="propertyType" className="block text-xs font-medium text-[var(--muted)]">
+                  Property type
+                </label>
+                <select
+                  id="propertyType"
+                  name="propertyType"
+                  defaultValue={propertyType || ""}
+                  className="select-arrow mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
+                >
+                  {PROPERTY_TYPES.map((opt) => (
+                    <option key={opt.value || "any"} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <div>
-                <label
-                  htmlFor="sort"
-                  className="sr-only"
-                >
+                <label htmlFor="sort" className="sr-only">
                   Sort by
                 </label>
                 <select
@@ -720,62 +505,21 @@ export default function ListingsSearchPage() {
           <ListingsMapClient listings={listings} showFitBounds={listings.length > 0} />
         ) : (
           <>
-            {listings.length === 0 && !loading ? (
+            {loading ? (
+              <ListingsSkeleton count={PAGE_SIZE} />
+            ) : listings.length === 0 ? (
               <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface)] p-12 text-center text-[var(--muted)]">
                 No listings match your search or filters.
               </div>
             ) : (
               <>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {listings.map((listing) => {
-                    const title =
-                      (listing.addressLine && listing.addressLine.trim()) ||
-                      (listing.propertyType && listing.propertyType.trim()) ||
-                      "Listing";
-                    const location = [listing.city, listing.province]
-                      .filter(Boolean)
-                      .join(", ") || "";
-                    const image =
-                      (listing.photoUrl && listing.photoUrl.trim()) ||
-                      PLACEHOLDER_IMAGE;
-
-                    return (
-                      <article
-                        key={listing.id}
-                        className="group overflow-hidden rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] shadow-[0_4px_24px_rgba(0,0,0,0.2)] transition hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
-                      >
-                        <Link href={listing.url} className="block">
-                          <div className="relative aspect-[4/3] w-full overflow-hidden">
-                            <img
-                              src={image}
-                              alt=""
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                            />
-                            <div className="absolute right-3 top-3 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-                              {formatPrice(listing.price)}
-                            </div>
-                          </div>
-                          <div className="p-5">
-                            <h2 className="font-semibold text-[var(--foreground)]">
-                              {title}
-                            </h2>
-                            <p className="mt-1 text-sm text-[var(--muted)]">
-                              {formatBedsBaths(listing.beds, listing.baths)}
-                            </p>
-                            {location && (
-                              <p className="mt-0.5 text-xs text-[var(--muted)]">
-                                {location}
-                              </p>
-                            )}
-                            <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)]">
-                              View details <span aria-hidden>→</span>
-                            </span>
-                          </div>
-                        </Link>
-                      </article>
-                    );
-                  })}
+                  {listings.map((listing) => (
+                    <ListingCardComponent
+                      key={listing.id}
+                      listing={toListingCardFromResult(listing)}
+                    />
+                  ))}
                 </div>
 
                 {totalPages > 1 && (

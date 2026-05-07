@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type BlogPostRow = {
   id: string;
@@ -22,6 +24,10 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100";
+const labelClass = "block text-xs font-medium text-zinc-500 dark:text-zinc-400";
+
 export default function AdminBlogPage() {
   const [posts, setPosts] = useState<BlogPostRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +43,8 @@ export default function AdminBlogPage() {
   });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [bodyTab, setBodyTab] = useState<"write" | "preview">("write");
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -71,25 +79,17 @@ export default function AdminBlogPage() {
           : "",
       });
       setEditingId(id);
+      setBodyTab("write");
       setMessage(null);
     } catch (e) {
-      setMessage({
-        type: "error",
-        text: e instanceof Error ? e.message : "Failed to load post",
-      });
+      setMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to load post" });
     }
   }
 
   function startNew() {
-    setForm({
-      slug: "",
-      title: "",
-      excerpt: "",
-      body: "",
-      coverImageUrl: "",
-      publishedAt: "",
-    });
+    setForm({ slug: "", title: "", excerpt: "", body: "", coverImageUrl: "", publishedAt: "" });
     setEditingId("new");
+    setBodyTab("write");
     setMessage(null);
   }
 
@@ -117,45 +117,33 @@ export default function AdminBlogPage() {
         publishedAt: draft
           ? null
           : form.publishedAt.trim()
-            ? form.publishedAt
-            : new Date().toISOString(),
+          ? form.publishedAt
+          : new Date().toISOString(),
       };
-      if (editingId === "new") {
-        const res = await fetch("/api/admin/blog-posts", {
-          method: "POST",
+      const isNew = editingId === "new";
+      const res = await fetch(
+        isNew ? "/api/admin/blog-posts" : `/api/admin/blog-posts/${editingId}`,
+        {
+          method: isNew ? "POST" : "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        });
-        const err = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((err as { error?: string }).error ?? "Failed to create");
-        setMessage({ type: "ok", text: draft ? "Draft saved." : "Post published." });
-        setEditingId(null);
-        fetchPosts();
-      } else if (editingId) {
-        const res = await fetch(`/api/admin/blog-posts/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const err = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((err as { error?: string }).error ?? "Failed to update");
-        setMessage({ type: "ok", text: draft ? "Draft updated." : "Post updated." });
-        setEditingId(null);
-        fetchPosts();
-      }
+        }
+      );
+      const err = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((err as { error?: string }).error ?? "Failed to save");
+      setMessage({ type: "ok", text: draft ? "Draft saved." : isNew ? "Post published." : "Post updated." });
+      setEditingId(null);
+      fetchPosts();
     } catch (e) {
-      setMessage({
-        type: "error",
-        text: e instanceof Error ? e.message : "Failed to save",
-      });
+      setMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to save" });
     } finally {
       setSaving(false);
     }
   }
 
   async function deletePost(id: string) {
-    if (!confirm("Delete this post? This cannot be undone.")) return;
     setDeletingId(id);
+    setConfirmDeleteId(null);
     setMessage(null);
     try {
       const res = await fetch(`/api/admin/blog-posts/${id}`, { method: "DELETE" });
@@ -170,10 +158,7 @@ export default function AdminBlogPage() {
       setMessage({ type: "ok", text: "Post deleted." });
       fetchPosts();
     } catch (e) {
-      setMessage({
-        type: "error",
-        text: e instanceof Error ? e.message : "Failed to delete",
-      });
+      setMessage({ type: "error", text: e instanceof Error ? e.message : "Failed to delete" });
     } finally {
       setDeletingId(null);
     }
@@ -204,88 +189,111 @@ export default function AdminBlogPage() {
       </div>
 
       {message && (
-        <p
-          className={
-            message.type === "ok"
-              ? "text-sm text-green-600 dark:text-green-400"
-              : "text-sm text-red-600 dark:text-red-400"
-          }
-        >
+        <p className={message.type === "ok" ? "text-sm text-green-600 dark:text-green-400" : "text-sm text-red-600 dark:text-red-400"}>
           {message.text}
         </p>
       )}
 
-      {editingId ? (
+      {editingId && (
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             {editingId === "new" ? "New post" : "Edit post"}
           </h2>
           <div className="mt-4 space-y-4">
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Title *
-              </label>
+              <label className={labelClass}>Title *</label>
               <input
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 onBlur={suggestSlug}
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className={fieldClass}
                 placeholder="Post title"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Slug *
-              </label>
+              <label className={labelClass}>Slug *</label>
               <input
                 type="text"
                 value={form.slug}
                 onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm font-mono dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className={`${fieldClass} font-mono`}
                 placeholder="url-slug"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Excerpt (for SEO) *
-              </label>
+              <label className={labelClass}>Excerpt (for SEO) *</label>
               <input
                 type="text"
                 value={form.excerpt}
                 onChange={(e) => setForm((f) => ({ ...f, excerpt: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className={fieldClass}
                 placeholder="Short description"
               />
             </div>
+
+            {/* Body with Write / Preview tabs */}
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Body (Markdown) *
-              </label>
-              <textarea
-                value={form.body}
-                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                rows={12}
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm font-mono dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                placeholder="Write in Markdown…"
-              />
+              <div className="flex items-center justify-between">
+                <label className={labelClass}>Body (Markdown) *</label>
+                <div className="flex rounded-lg border border-zinc-200 p-0.5 text-xs dark:border-zinc-700">
+                  <button
+                    type="button"
+                    onClick={() => setBodyTab("write")}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      bodyTab === "write"
+                        ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                        : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                    }`}
+                  >
+                    Write
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBodyTab("preview")}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      bodyTab === "preview"
+                        ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                        : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                    }`}
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
+              {bodyTab === "write" ? (
+                <textarea
+                  value={form.body}
+                  onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+                  rows={16}
+                  className={`${fieldClass} font-mono`}
+                  placeholder="Write in Markdown…"
+                />
+              ) : (
+                <div className="mt-1 min-h-64 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                  {form.body.trim() ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{form.body}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-zinc-400">Nothing to preview yet.</p>
+                  )}
+                </div>
+              )}
             </div>
+
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Cover image URL
-              </label>
+              <label className={labelClass}>Cover image URL</label>
               <input
                 type="url"
                 value={form.coverImageUrl}
                 onChange={(e) => setForm((f) => ({ ...f, coverImageUrl: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className={fieldClass}
                 placeholder="https://…"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Publish date (leave empty for draft)
-              </label>
+              <label className={labelClass}>Publish date (leave empty for draft)</label>
               <input
                 type="datetime-local"
                 value={form.publishedAt}
@@ -319,18 +327,38 @@ export default function AdminBlogPage() {
               Cancel
             </button>
             {editingId && editingId !== "new" && (
-              <button
-                type="button"
-                onClick={() => editingId && deletePost(editingId)}
-                disabled={deletingId === editingId}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-900/30"
-              >
-                {deletingId === editingId ? "Deleting…" : "Delete"}
-              </button>
+              confirmDeleteId === editingId ? (
+                <span className="flex items-center gap-2">
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">Delete this post?</span>
+                  <button
+                    type="button"
+                    onClick={() => deletePost(editingId)}
+                    disabled={deletingId === editingId}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-900/30"
+                  >
+                    Yes, delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(null)}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(editingId)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                >
+                  Delete
+                </button>
+              )
             )}
           </div>
         </section>
-      ) : null}
+      )}
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Posts</h2>
@@ -344,16 +372,23 @@ export default function AdminBlogPage() {
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800"
               >
                 <div className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-zinc-900 dark:text-zinc-100">
-                    {post.title}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="block truncate font-medium text-zinc-900 dark:text-zinc-100">
+                      {post.title}
+                    </span>
+                    {post.publishedAt ? (
+                      <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                        Published
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">
+                        Draft
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">
                     /blog/{post.slug}
-                    {post.publishedAt ? (
-                      <> · Published {new Date(post.publishedAt).toLocaleDateString()}</>
-                    ) : (
-                      " · Draft"
-                    )}
+                    {post.publishedAt && <> · {new Date(post.publishedAt).toLocaleDateString()}</>}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -367,17 +402,36 @@ export default function AdminBlogPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => deletePost(post.id)}
-                    disabled={deletingId === post.id}
-                    className="rounded p-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 disabled:opacity-50"
-                    aria-label="Delete"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  {confirmDeleteId === post.id ? (
+                    <span className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => deletePost(post.id)}
+                        disabled={deletingId === post.id}
+                        className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="rounded px-2 py-1 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(post.id)}
+                      className="rounded p-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                      aria-label="Delete"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </li>
             ))}

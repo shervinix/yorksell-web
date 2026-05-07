@@ -334,7 +334,8 @@ function isAuthorized(req: Request) {
   const expected = process.env.MLS_SYNC_KEY?.trim();
   if (!expected) return false;
 
-  const got = req.headers.get("x-mls-sync-key") || "";
+  const authHeader = req.headers.get("authorization") || "";
+  const got = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
   return timingSafeStringEqual(got, expected);
 }
 
@@ -1050,7 +1051,7 @@ export async function GET(req: Request) {
   const exampleCurl =
     process.env.NODE_ENV !== "production"
       ? "curl -X POST 'http://localhost:3000/api/mls/sync?limit=50&pages=2&dryRun=1'"
-      : "curl -X POST 'https://YOUR_DOMAIN/api/mls/sync?limit=50&pages=2' -H 'x-mls-sync-key: ...'";
+      : "curl -X POST 'https://YOUR_DOMAIN/api/mls/sync?limit=50&pages=2' -H 'Authorization: Bearer <MLS_SYNC_KEY>'";
 
   const hasUsername = Boolean(process.env.DDF_USERNAME?.trim());
   const hasPassword = Boolean(process.env.DDF_PASSWORD?.trim());

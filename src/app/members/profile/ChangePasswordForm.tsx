@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 
+const labelClass = "block text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-white/[0.12] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder-[var(--muted)]/60 outline-none transition focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20";
+
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -25,10 +29,7 @@ export function ChangePasswordForm() {
       const res = await fetch("/api/user/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -37,9 +38,7 @@ export function ChangePasswordForm() {
         return;
       }
       setMessage({ type: "success", text: "Password updated." });
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
     } catch {
       setMessage({ type: "error", text: "Failed to update password." });
     } finally {
@@ -47,67 +46,26 @@ export function ChangePasswordForm() {
     }
   }
 
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-white/10 bg-[var(--surface)] px-3 py-2.5 text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]";
-
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Current password
-        </label>
-        <input
-          type="password"
-          required
-          className={inputClass}
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          placeholder="••••••••"
-        />
+        <label className={labelClass}>Current password</label>
+        <input type="password" required className={inputClass} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
       </div>
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          New password
-        </label>
-        <input
-          type="password"
-          required
-          minLength={8}
-          className={inputClass}
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          placeholder="At least 8 characters"
-        />
+        <label className={labelClass}>New password</label>
+        <input type="password" required minLength={8} className={inputClass} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters" />
       </div>
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Confirm new password
-        </label>
-        <input
-          type="password"
-          required
-          minLength={8}
-          className={inputClass}
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Repeat new password"
-        />
+        <label className={labelClass}>Confirm new password</label>
+        <input type="password" required minLength={8} className={inputClass} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat new password" />
       </div>
       {message && (
-        <p
-          className={
-            "text-sm " +
-            (message.type === "success" ? "text-green-500" : "text-red-400")
-          }
-        >
+        <p className={"text-sm " + (message.type === "success" ? "text-green-500" : "text-red-400")}>
           {message.text}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={loading}
-        className="inline-flex h-11 items-center justify-center rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
-      >
+      <button type="submit" disabled={loading} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60">
         {loading ? "Updating…" : "Update password"}
       </button>
     </form>

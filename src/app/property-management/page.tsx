@@ -19,7 +19,7 @@ export default function PropertyManagementPage() {
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Hero */}
-      <header className="relative -mt-20 min-h-[45vh] overflow-hidden pt-20 sm:-mt-[5.5rem] sm:pt-[5.5rem]">
+      <header className="relative -mt-[6.5rem] min-h-[45vh] overflow-hidden pt-[6.5rem]">
         <div className="absolute inset-0 z-0">
           <img
             src={HERO_IMAGE}

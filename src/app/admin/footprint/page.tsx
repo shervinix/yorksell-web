@@ -319,13 +319,13 @@ export default function AdminFootprintPage() {
         </ul>
       </section>
 
-      {/* Performance overrides */}
+      {/* Performance override */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Our performance numbers
+          Total deal volume
         </h2>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          By default, counts and volumes are computed from the map points above. Turn on custom numbers to override what appears on the footprint page.
+          Override the number shown in the animated counter on the footprint page. Leave the checkbox off to compute automatically from map point prices.
         </p>
         <label className="mt-4 flex items-center gap-2">
           <input
@@ -334,29 +334,31 @@ export default function AdminFootprintPage() {
             onChange={(e) => setUseCustomPerformance(e.target.checked)}
             className="rounded border-zinc-300"
           />
-          <span className="text-sm text-zinc-700 dark:text-zinc-300">Use custom performance numbers</span>
+          <span className="text-sm text-zinc-700 dark:text-zinc-300">Use a custom total volume</span>
         </label>
         {useCustomPerformance && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { key: "soldCount" as const, label: "Sold count" },
-              { key: "purchasedCount" as const, label: "Purchased count" },
-              { key: "activeCount" as const, label: "Active count" },
-              { key: "soldVolume" as const, label: "Sold volume ($)" },
-              { key: "purchasedVolume" as const, label: "Purchased volume ($)" },
-              { key: "totalVolume" as const, label: "Total volume ($)" },
-            ].map(({ key, label }) => (
-              <div key={key}>
-                <label className="block text-xs text-zinc-500">{label}</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={overrides[key] ?? ""}
-                  onChange={(e) => setOverride(key, e.target.value === "" ? "" : Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800"
-                />
-              </div>
-            ))}
+          <div className="mt-4 max-w-xs">
+            <label className="block text-xs text-zinc-500">Total deal volume ($)</label>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={overrides.totalVolume ?? ""}
+              onChange={(e) => setOverride("totalVolume", e.target.value === "" ? "" : Number(e.target.value))}
+              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+              placeholder="e.g. 18000000"
+            />
+            {overrides.totalVolume != null && (
+              <p className="mt-1.5 text-xs text-zinc-400">
+                Displays as:{" "}
+                {new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(overrides.totalVolume)}
+              </p>
+            )}
           </div>
         )}
       </section>

@@ -18,7 +18,7 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Hero — extends under the menu (same as home / listing pages) */}
-      <header className="relative -mt-20 min-h-[50vh] overflow-hidden pt-20 sm:-mt-[5.5rem] sm:pt-[5.5rem]">
+      <header className="relative -mt-[6.5rem] min-h-[50vh] overflow-hidden pt-[6.5rem]">
         <div className="absolute inset-0 z-0">
           <img
             src={HERO_IMAGE}

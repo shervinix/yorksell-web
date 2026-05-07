@@ -1,207 +1,26 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 import { REVIEWS, GOOGLE_REVIEWS_URL } from "@/data/reviews";
+import { getFeaturedListings } from "@/lib/get-featured-listings";
+import { ListingCard } from "@/app/listings/ListingCard";
+import JoinNetworkForm from "@/app/JoinNetworkForm";
+import HeroSearch from "@/app/HeroSearch";
 
-type ApiFeaturedListing = {
-  id: string;
-  ddfId?: string | null;
-  mlsNumber?: string | null;
-  status?: string | null;
-  addressLine?: string | null;
-  city?: string | null;
-  province?: string | null;
-  postalCode?: string | null;
-  price?: number | null;
-  beds?: number | null;
-  baths?: number | null;
-  propertyType?: string | null;
-  photoUrl?: string | null;
-};
+export const revalidate = 60;
 
-type FeaturedListing = {
-  id: string;
-  href: string;
-  title: string;
-  price: string;
-  meta: string;
-  location: string;
-  image: string;
-};
-
-const formatPrice = (value?: number | null) => {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return "";
-  try {
-    return new Intl.NumberFormat("en-CA", {
-      style: "currency",
-      currency: "CAD",
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value).toLocaleString()}`;
-  }
-};
-
-const formatBedsBaths = (beds?: number | null, baths?: number | null) => {
-  const parts: string[] = [];
-  if (typeof beds === "number" && Number.isFinite(beds)) parts.push(`${beds} Bed`);
-  if (typeof baths === "number" && Number.isFinite(baths)) parts.push(`${baths} Bath`);
-  return parts.length ? parts.join(" • ") : "";
-};
-
-const toFeatured = (l: ApiFeaturedListing): FeaturedListing => {
-  const title =
-    (l.addressLine && l.addressLine.trim()) ||
-    (l.propertyType && l.propertyType.trim()) ||
-    (l.mlsNumber && l.mlsNumber.trim()) ||
-    (l.ddfId && `Listing ${l.ddfId}`) ||
-    "Listing";
-
-  const city = (l.city && l.city.trim()) || "";
-  const prov = (l.province && l.province.trim()) || "";
-  const location = [city, prov].filter(Boolean).join(", ") || "Toronto, ON";
-
-  const price = formatPrice(l.price) || "Contact";
-  const meta =
-    formatBedsBaths(l.beds, l.baths) ||
-    (l.propertyType && l.propertyType.trim()) ||
-    "MLS listing";
-
-  // Prefer MLS number in URLs, then ddfId, then id
-  const key = (l.mlsNumber && l.mlsNumber.trim()) || (l.ddfId && l.ddfId.trim()) || l.id;
-  const href = `/listings/${encodeURIComponent(key)}`;
-
-  // Prefer DDF photo URL, then proxy (GetObject: use mlsNumber first per RealtyPress), then placeholder
-  const image =
-    (l.photoUrl && l.photoUrl.trim()) ||
-    (l.mlsNumber ? `/api/listings/photo?mlsNumber=${encodeURIComponent(l.mlsNumber)}` : null) ||
-    (l.ddfId ? `/api/listings/photo?ddfId=${encodeURIComponent(l.ddfId)}` : null) ||
-    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80";
-
-  return {
-    id: l.id,
-    href,
-    title,
-    price,
-    meta,
-    location,
-    image,
-  };
-};
-
-const FEATURED_FALLBACK: FeaturedListing[] = [
-  {
-    id: "featured-1",
-    href: "/listings/featured-1",
-    title: "Modern Condo • Waterfront",
-    price: "$999,000",
-    meta: "2 Bed • 2 Bath • 1 Parking",
-    location: "Toronto, ON",
-    image:
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    id: "featured-2",
-    href: "/listings/featured-2",
-    title: "Family Home • Ravine Lot",
-    price: "$2,495,000",
-    meta: "4+1 Bed • 4 Bath",
-    location: "North York, ON",
-    image:
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80",
-  },
-  {
-    id: "featured-3",
-    href: "/listings/featured-3",
-    title: "Luxury Townhome • End Unit",
-    price: "$1,399,000",
-    meta: "3 Bed • 3 Bath • 2 Parking",
-    location: "Etobicoke, ON",
-    image:
-      "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1600&q=80",
-  },
-];
-
-export default function HomePage() {
-  const heroVideoRef = useRef<HTMLVideoElement>(null);
-  const [featured, setFeatured] = useState<FeaturedListing[]>(FEATURED_FALLBACK);
-  const [featuredFromApi, setFeaturedFromApi] = useState(false);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
-  const [featuredError, setFeaturedError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      try {
-        setFeaturedLoading(true);
-        setFeaturedError(null);
-
-        const res = await fetch("/api/listings/featured", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to load featured listings (${res.status})`);
-        }
-
-        const data = (await res.json()) as { listings?: unknown };
-        const raw = Array.isArray((data as any)?.listings) ? ((data as any).listings as unknown[]) : [];
-
-        const mapped: FeaturedListing[] = raw
-          .filter(Boolean)
-          .map((x) => toFeatured(x as ApiFeaturedListing))
-          .slice(0, 3);
-
-        if (!cancelled && mapped.length > 0) {
-          setFeatured(mapped);
-          setFeaturedFromApi(true);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          const msg = e instanceof Error ? e.message : "Failed to load featured listings";
-          setFeaturedError(msg);
-        }
-      } finally {
-        if (!cancelled) setFeaturedLoading(false);
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Ensure hero background video plays (helps with strict autoplay policies)
-  useEffect(() => {
-    const video = heroVideoRef.current;
-    if (!video) return;
-    const play = () => {
-      video.play().catch(() => {});
-    };
-    if (video.readyState >= 2) play();
-    else {
-      video.addEventListener("loadeddata", play, { once: true });
-      return () => video.removeEventListener("loadeddata", play);
-    }
-  }, []);
+export default async function HomePage() {
+  const featured = await getFeaturedListings();
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      {/* HERO - video extends behind the header; negative margin pulls it up under the menu */}
-      <header className="relative -mt-20 overflow-hidden min-h-[90vh] flex flex-col pt-20 sm:-mt-[5.5rem] sm:pt-[5.5rem]">
+      {/* HERO */}
+      <header className="relative -mt-[6.5rem] overflow-hidden min-h-[90vh] flex flex-col pt-[6.5rem]">
         <div className="absolute inset-0 z-0">
           <video
-            ref={heroVideoRef}
             autoPlay
             muted
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
             className="absolute inset-0 h-full w-full object-cover scale-105"
             poster="https://images.unsplash.com/photo-1520694478161-50bfe3f7f925?auto=format&fit=crop&w=2600&q=80"
             aria-hidden
@@ -240,7 +59,7 @@ export default function HomePage() {
       </header>
 
       {/* ABOUT */}
-      <section className="border-t border-white/[0.06] bg-[var(--background)]">
+      <section className="bg-[var(--background)]">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
           <div className="grid gap-12 md:grid-cols-2 md:items-center">
             <div>
@@ -279,7 +98,7 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+            <div className="overflow-hidden rounded-2xl border border-white/[0.12] bg-[var(--surface)] shadow-[0_8px_40px_rgba(0,0,0,0.55)]">
               <div className="relative aspect-[4/3] w-full">
                 <img
                   src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2000&q=80"
@@ -302,7 +121,7 @@ export default function HomePage() {
       <SectionDivider />
 
       {/* SERVICES */}
-      <section className="border-t border-white/[0.06] bg-[var(--surface)]">
+      <section className="bg-[var(--background)]">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
           <div className="mb-10">
             <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
@@ -347,86 +166,48 @@ export default function HomePage() {
       <SectionDivider />
 
       {/* FEATURED */}
-      <section className="border-t border-white/[0.06] bg-[var(--background)]">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
-                Featured listings
-              </h2>
-              <p className="mt-2 text-[var(--muted)]">
-                Current MLS listings across Toronto and the GTA.
-              </p>
-            </div>
-            <Link
-              href="/listings"
-              className="hidden h-11 items-center justify-center rounded-xl border border-white/10 px-5 text-sm font-medium text-[var(--foreground)] hover:bg-white/5 md:inline-flex"
-            >
-              View all
-            </Link>
-          </div>
-
-          {(featuredLoading || featuredError) && (
-            <div className="mt-6 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
-              {featuredLoading ? (
-                <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--accent)]" />
-              ) : (
-                <span className="h-2 w-2 rounded-full bg-white/30" />
-              )}
-              <span>
-                {featuredLoading ? "Loading…" : featuredError ?? "Showing featured listings."}
-              </span>
-            </div>
-          )}
-
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {featured.map((l) => (
-              <article
-                key={l.id}
-                className="group overflow-hidden rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] shadow-[0_4px_24px_rgba(0,0,0,0.2)] transition hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+      {featured.length > 0 && (
+        <section className="bg-[var(--background)]">
+          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
+            <div className="flex items-end justify-between gap-6">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
+                  Featured listings
+                </h2>
+                <p className="mt-2 text-[var(--muted)]">
+                  Current MLS listings across Toronto and the GTA.
+                </p>
+              </div>
+              <Link
+                href="/listings"
+                className="hidden h-11 items-center justify-center rounded-xl border border-white/10 px-5 text-sm font-medium text-[var(--foreground)] hover:bg-white/5 md:inline-flex"
               >
-                <Link href={l.href} className="block">
-                  <div className="relative aspect-[4/3] w-full overflow-hidden">
-                    <img
-                      src={l.image}
-                      alt=""
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute right-3 top-3 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-                      {l.price}
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="font-semibold text-[var(--foreground)]">{l.title}</h3>
-                    <p className="mt-1 text-sm text-[var(--muted)]">{l.meta}</p>
-                    <p className="mt-0.5 text-xs text-[var(--muted)]">{l.location}</p>
-                    <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)]">
-                      View details
-                      <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
-                    </span>
-                  </div>
-                </Link>
-              </article>
-            ))}
-          </div>
+                View all
+              </Link>
+            </div>
 
-          <div className="mt-10 md:hidden">
-            <Link
-              href="/listings"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-[var(--surface)] text-sm font-medium text-[var(--foreground)] hover:bg-white/5"
-            >
-              View all listings
-            </Link>
+            <div className="mt-10 grid gap-6 md:grid-cols-3">
+              {featured.map((l) => (
+                <ListingCard key={l.id} listing={l} />
+              ))}
+            </div>
+
+            <div className="mt-10 md:hidden">
+              <Link
+                href="/listings"
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-[var(--surface)] text-sm font-medium text-[var(--foreground)] hover:bg-white/5"
+              >
+                View all listings
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <SectionDivider />
 
       {/* GOOGLE REVIEWS */}
-      <section className="border-t border-white/[0.06] bg-[var(--surface)]">
+      <section className="bg-[var(--background)]">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -451,7 +232,7 @@ export default function HomePage() {
             {REVIEWS.map((review, i) => (
               <article
                 key={i}
-                className="flex flex-col rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.2)]"
+                className="flex flex-col rounded-2xl border border-white/[0.12] bg-[var(--surface)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.5)]"
               >
                 <div className="flex items-center gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -491,7 +272,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="relative border-t border-white/[0.06] bg-[var(--surface)] overflow-hidden">
+      <section className="relative bg-[var(--background)] overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <img
             src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2600&q=60"
@@ -503,14 +284,14 @@ export default function HomePage() {
           />
         </div>
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
-          <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)]/95 p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)] backdrop-blur-sm md:p-10">
+          <div className="rounded-2xl border border-white/[0.12] bg-[var(--surface)] p-8 shadow-[0_8px_40px_rgba(0,0,0,0.5)] md:p-10">
             <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
               <div className="max-w-xl">
                 <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
                   Ready to talk?
                 </h2>
                 <p className="mt-3 text-[var(--muted)]">
-                  Share your timeline and goals and we’ll outline next steps.
+                  Share your timeline and goals and we'll outline next steps.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -531,117 +312,22 @@ export default function HomePage() {
           </div>
 
           {/* Join Our Network / Newsletter */}
-          <div className="mt-16 rounded-3xl border border-white/[0.08] bg-[var(--surface-elevated)]/98 p-10 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-sm md:p-14 lg:p-16">
+          <div className="mt-16 rounded-3xl border border-white/[0.12] bg-[var(--surface)] p-10 shadow-[0_8px_40px_rgba(0,0,0,0.5)] md:p-14 lg:p-16">
             <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
               <div className="max-w-lg">
                 <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl lg:text-4xl">
                   Join our network
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-[var(--muted)] md:text-lg">
-                  Get market insights, new listings, and updates from Yorksell. No spam, we send only what’s useful.
+                  Get market insights, new listings, and updates from Yorksell. No spam, we send only what's useful.
                 </p>
               </div>
               <JoinNetworkForm />
             </div>
           </div>
-
         </div>
       </section>
     </div>
-  );
-}
-
-
-function JoinNetworkForm() {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage("");
-    const trimmedEmail = email.trim();
-    const trimmedName = name.trim();
-    if (!trimmedEmail || !trimmedName) {
-      setStatus("error");
-      setMessage("Please provide both name and email.");
-      return;
-    }
-    setStatus("loading");
-    try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: trimmedEmail,
-          name: trimmedName,
-          source: "newsletter",
-        }),
-      });
-      const data = (await res.json()) as { error?: string; message?: string };
-      if (!res.ok) {
-        setStatus("error");
-        setMessage(data.error ?? "Something went wrong. Please try again.");
-        return;
-      }
-      setStatus("success");
-      setMessage(data.message ?? "Thanks — you're on the list.");
-      setEmail("");
-      setName("");
-    } catch {
-      setStatus("error");
-      setMessage("Something went wrong. Please try again.");
-    }
-  }
-
-  const inputClass =
-    "w-full rounded-xl border border-white/10 bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] placeholder-[var(--muted)] outline-none transition focus:border-[var(--accent)]/50 focus:ring-2 focus:ring-[var(--accent)]/30";
-
-  return (
-    <form onSubmit={onSubmit} className="w-full min-w-0 lg:max-w-md">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
-        <div className="flex flex-1 flex-col gap-4 sm:flex-row">
-          <input
-            type="email"
-            name="email"
-            required
-            placeholder="Your email"
-            className={inputClass}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={status === "loading"}
-          />
-          <input
-            type="text"
-            name="name"
-            required
-            placeholder="Name"
-            className={inputClass + " sm:w-40"}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={status === "loading"}
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={status === "loading"}
-          className="shrink-0 rounded-xl bg-[var(--accent)] px-6 py-3 text-base font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60 sm:px-8"
-        >
-          {status === "loading" ? "Joining…" : "Join"}
-        </button>
-      </div>
-      {message && (
-        <p
-          className={
-            "mt-4 text-sm " +
-            (status === "success" ? "text-green-500" : status === "error" ? "text-red-400" : "text-[var(--muted)]")
-          }
-        >
-          {message}
-        </p>
-      )}
-    </form>
   );
 }
 
@@ -677,7 +363,7 @@ function ServiceCard({
   imageAlt?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
+    <div className="overflow-hidden rounded-2xl border border-white/[0.12] bg-[var(--surface)] shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
       {image && (
         <div className="relative aspect-[16/10] w-full overflow-hidden">
           <img

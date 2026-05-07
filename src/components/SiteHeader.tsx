@@ -97,23 +97,26 @@ export default function SiteHeader() {
     };
   }, [servicesOpen]);
 
-  const navTransparent = isHome && !scrolled;
+  const navTransparent = !scrolled;
   const linkClass = navTransparent
     ? "rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
     : "rounded-lg px-3 py-2 text-sm text-[var(--foreground)]/80 transition hover:bg-white/10 hover:text-[var(--foreground)]";
   // Glass bar: semi-transparent, backdrop blur, content scrolls underneath
   const barClass =
-    "backdrop-blur-xl border border-white/[0.08] " +
+    "backdrop-blur-xl border border-white/[0.15] shadow-[0_2px_16px_rgba(0,0,0,0.3)] " +
     (navTransparent
-      ? "bg-white/5 shadow-none"
-      : "bg-[var(--surface-elevated)]/70 shadow-[0_4px_24px_rgba(0,0,0,0.25)]");
+      ? "bg-white/5"
+      : "bg-[var(--surface-elevated)]/80 shadow-[0_4px_24px_rgba(0,0,0,0.35)]");
   const ctaBorderClass = navTransparent ? "border-white/10" : "border-white/10";
   const ctaPrimaryClass = "inline-flex h-10 items-center justify-center rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]";
 
   return (
     <>
       <header className="sticky top-0 z-40 w-full">
-        <div className="flex w-full items-center px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex flex-col w-full bg-gradient-to-b from-black/30 to-transparent">
+          {/* Transparent spacer — sits above the pill on its own layer, pushes pill down without a visible gap */}
+          <div className="pointer-events-none h-5 w-full" aria-hidden="true" />
+          <div className="flex w-full items-center px-4 pb-3 sm:px-6 sm:pb-4">
           <div
             className={
               "flex min-h-12 w-full items-center justify-between gap-4 rounded-2xl px-4 py-2.5 transition-all duration-300 sm:min-h-0 sm:px-6 " +
@@ -327,6 +330,7 @@ export default function SiteHeader() {
                 Contact
               </Link>
             </div>
+          </div>
           </div>
         </div>
       </header>

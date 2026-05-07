@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/server/db/prisma";
 import { getFootprintData, getResolvedFootprintStats } from "@/lib/footprint";
 import FootprintMapClient from "./FootprintMapClient";
+import FootprintVolumeCounter from "./FootprintVolumeCounter";
 
 export const metadata: Metadata = {
   title: "Footprint | Yorksell",
@@ -17,21 +18,6 @@ export const metadata: Metadata = {
 const HERO_IMAGE =
   "https://unsplash.com/photos/UKu0b_VD5Jo/download?force=true&w=2600";
 
-function formatVolume(value: number) {
-  if (value >= 1_000_000) {
-    return new Intl.NumberFormat("en-CA", {
-      style: "currency",
-      currency: "CAD",
-      maximumFractionDigits: 1,
-      minimumFractionDigits: 1,
-    }).format(value / 1_000_000).replace(/\.0$/, "") + "M";
-  }
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency: "CAD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 export default async function FootprintPage() {
   const data = await getFootprintData(prisma);
@@ -40,7 +26,7 @@ export default async function FootprintPage() {
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Hero */}
-      <header className="relative -mt-20 min-h-[40vh] overflow-hidden pt-20 sm:-mt-[5.5rem] sm:pt-[5.5rem]">
+      <header className="relative -mt-[6.5rem] min-h-[40vh] overflow-hidden pt-[6.5rem]">
         <div className="absolute inset-0 z-0">
           <img
             src={HERO_IMAGE}
@@ -85,46 +71,15 @@ export default async function FootprintPage() {
         </div>
       </section>
 
-      {/* Performance stats */}
+      {/* Total deal volume */}
       <section className="border-t border-white/[0.06] bg-[var(--background)]">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
-            Our performance
-          </h2>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            A snapshot of our activity across the GTA. Data reflects the sample points on the map — update with your real transactions.
-          </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
-              <p className="text-sm font-medium text-[var(--muted)]">Sold (listings)</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] md:text-3xl">
-                {stats.soldCount}
-              </p>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                {formatVolume(stats.soldVolume)} volume
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
-              <p className="text-sm font-medium text-[var(--muted)]">Purchased (buyer rep)</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] md:text-3xl">
-                {stats.purchasedCount}
-              </p>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                {formatVolume(stats.purchasedVolume)} volume
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
-              <p className="text-sm font-medium text-[var(--muted)]">Active listings</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] md:text-3xl">
-                {stats.activeCount}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
-              <p className="text-sm font-medium text-[var(--muted)]">Total closed volume</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] md:text-3xl">
-                {formatVolume(stats.totalVolume)}
-              </p>
-            </div>
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+          <div className="text-center">
+            <p className="text-2xl font-bold uppercase tracking-[0.22em] text-[var(--accent)]">
+              Our performance
+            </p>
+            <FootprintVolumeCounter total={stats.totalVolume} />
+            <p className="mt-10 text-lg text-[var(--muted)]">Total deal volume across the GTA</p>
           </div>
         </div>
       </section>

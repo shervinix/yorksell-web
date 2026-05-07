@@ -1,5 +1,8 @@
 import { MetadataRoute } from "next";
 import { prisma } from "@/server/db/prisma";
+import { hasRealData } from "@/lib/db-filters";
+
+export const revalidate = 3600;
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://yorksell.com";
 
@@ -11,15 +14,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/contact`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/search`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.6 },
   ];
-
-  const hasRealData = {
-    OR: [
-      { mlsNumber: { not: null } },
-      { addressLine: { not: null } },
-      { city: { not: null } },
-      { price: { not: null } },
-    ],
-  };
 
   const [listings, blogPosts] = await Promise.all([
     prisma.listing.findMany({

@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { withAuth } from "next-auth/middleware";
 
-// Minimal middleware (does nothing, but fixes Next.js error)
-export function middleware(_req: NextRequest) {
-  return NextResponse.next();
-}
+// Protect /admin and /members routes at the edge — requires a valid session JWT.
+// Fine-grained admin checks (isAdmin) still happen inside the admin layout.
+export default withAuth({
+  pages: { signIn: "/login" },
+});
 
-// Optional: run on all pages except Next internals
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/admin/:path*", "/members/:path*"],
 };

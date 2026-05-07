@@ -198,7 +198,7 @@ export default async function ListingPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Hero extends under the header (same as home page) */}
-      <section className="relative -mt-20 h-[65vh] w-full min-h-[320px] pt-20 sm:-mt-[5.5rem] sm:pt-[5.5rem]">
+      <section className="relative -mt-[6.5rem] h-[65vh] w-full min-h-[320px] pt-[6.5rem]">
         <ListingPhotoSlideshow
           photos={photoUrls}
           fallbackSrc={fallbackImageSrc}
@@ -261,8 +261,15 @@ export default async function ListingPage({ params }: PageProps) {
             >
               Contact us
             </Link>
-            {session?.user && (
+            {session?.user ? (
               <SaveListingButton listingId={listing.id} initialSaved={isSaved} />
+            ) : (
+              <Link
+                href={`/login?callbackUrl=/listings/${encodeURIComponent(listing.mlsNumber ?? listing.id)}`}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-medium text-[var(--foreground)] hover:bg-white/5"
+              >
+                Sign in to save
+              </Link>
             )}
           </aside>
         </div>

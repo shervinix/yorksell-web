@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 
+const labelClass = "block text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-white/[0.12] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder-[var(--muted)]/60 outline-none transition focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20";
+
+const ArrowIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden="true">
+    <path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default function JoinYorksellForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -41,21 +51,13 @@ export default function JoinYorksellForm() {
         return;
       }
       setSent(true);
-      setName("");
-      setEmail("");
-      setPhone("");
-      setLicense("");
-      setExperience("");
-      setMessage("");
+      setName(""); setEmail(""); setPhone(""); setLicense(""); setExperience(""); setMessage("");
     } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
-
-  const inputClass =
-    "mt-1 w-full rounded-xl border border-white/[0.08] bg-[var(--surface-elevated)] px-3 py-2.5 text-[var(--foreground)] placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)]/50";
 
   return (
     <div className="text-[var(--foreground)]">
@@ -67,7 +69,7 @@ export default function JoinYorksellForm() {
       </p>
 
       {sent ? (
-        <div className="mt-8 rounded-2xl border border-white/[0.06] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
+        <div className="mt-8 rounded-2xl border border-white/[0.08] bg-[var(--surface-elevated)] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
           <p className="font-medium text-[var(--foreground)]">Thanks! We&apos;ll reach out soon to discuss next steps.</p>
           <p className="mt-2 text-sm text-[var(--muted)]">
             <button type="button" onClick={() => setSent(false)} className="font-medium text-[var(--accent)] hover:underline">
@@ -79,100 +81,38 @@ export default function JoinYorksellForm() {
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor="join-name" className="block text-sm font-medium text-[var(--foreground)]">
-                Name
-              </label>
-              <input
-                id="join-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={inputClass}
-                placeholder="Your name"
-              />
+              <label htmlFor="join-name" className={labelClass}>Name</label>
+              <input id="join-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Your name" />
             </div>
             <div>
-              <label htmlFor="join-email" className="block text-sm font-medium text-[var(--foreground)]">
-                Email <span className="text-[var(--muted)]">(required)</span>
-              </label>
-              <input
-                id="join-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                placeholder="you@example.com"
-              />
+              <label htmlFor="join-email" className={labelClass}>Email</label>
+              <input id="join-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="you@example.com" />
             </div>
           </div>
           <div>
-            <label htmlFor="join-phone" className="block text-sm font-medium text-[var(--foreground)]">
-              Phone <span className="text-[var(--muted)]">(required)</span>
-            </label>
-            <input
-              id="join-phone"
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={inputClass}
-              placeholder="Best number to reach you"
-            />
+            <label htmlFor="join-phone" className={labelClass}>Phone</label>
+            <input id="join-phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="Best number to reach you" />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor="join-license" className="block text-sm font-medium text-[var(--foreground)]">
-                Real estate license
-              </label>
-              <input
-                id="join-license"
-                type="text"
-                value={license}
-                onChange={(e) => setLicense(e.target.value)}
-                className={inputClass}
-                placeholder="e.g. Ontario RECO #"
-              />
+              <label htmlFor="join-license" className={labelClass}>Real estate license</label>
+              <input id="join-license" type="text" value={license} onChange={(e) => setLicense(e.target.value)} className={inputClass} placeholder="e.g. Ontario RECO #" />
             </div>
             <div>
-              <label htmlFor="join-experience" className="block text-sm font-medium text-[var(--foreground)]">
-                Experience
-              </label>
-              <input
-                id="join-experience"
-                type="text"
-                value={experience}
-                onChange={(e) => setExperience(e.target.value)}
-                className={inputClass}
-                placeholder="e.g. 2 years, new agent"
-              />
+              <label htmlFor="join-experience" className={labelClass}>Experience</label>
+              <input id="join-experience" type="text" value={experience} onChange={(e) => setExperience(e.target.value)} className={inputClass} placeholder="e.g. 2 years, new agent" />
             </div>
           </div>
           <div>
-            <label htmlFor="join-message" className="block text-sm font-medium text-[var(--foreground)]">
-              Tell us about yourself
-            </label>
-            <textarea
-              id="join-message"
-              rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className={inputClass}
-              placeholder="Your background, goals, areas of interest..."
-            />
+            <label htmlFor="join-message" className={labelClass}>Tell us about yourself</label>
+            <textarea id="join-message" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} className={inputClass} placeholder="Your background, goals, areas of interest..." />
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
-              {error}
-            </div>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 transition"
-          >
-            {loading ? "Sending…" : "Submit"}
+          <button type="submit" disabled={loading} className="inline-flex w-full h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60">
+            {loading ? "Sending…" : <><span>Submit application</span><ArrowIcon /></>}
           </button>
         </form>
       )}

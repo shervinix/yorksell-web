@@ -8,11 +8,13 @@ const handler = NextAuth(authOptions);
 export async function GET(req: NextRequest, ctx: { params: Promise<{ nextauth: string[] }> }) {
   const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.nextAuth);
   if (rl) return rl;
-  return handler(req, ctx);
+  const params = await ctx.params;
+  return handler(req, { params });
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ nextauth: string[] }> }) {
   const rl = enforceRateLimit(req, RATE_LIMIT_PRESETS.nextAuth);
   if (rl) return rl;
-  return handler(req, ctx);
+  const params = await ctx.params;
+  return handler(req, { params });
 }

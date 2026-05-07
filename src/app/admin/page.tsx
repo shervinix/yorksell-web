@@ -1,347 +1,234 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-type SyncState = {
-  lastRunAt: string | null;
-  status: string | null;
-  lastError: string | null;
-  processed: number | null;
-  upserted: number | null;
-  errorCount: number | null;
+const SOURCE_LABELS: Record<string, string> = {
+  contact_page: "Contact",
+  listing_contact: "Listing",
+  home_cta: "Home CTA",
+  compass_page: "Compass",
+  valuation_page: "Valuation",
+  join_page: "Join",
 };
 
-type Schedule = {
-  enabled: boolean;
-  time: string;
-  timezone: string;
-  lastScheduledRunAt?: string | null;
-};
-
-const TIMEZONES = [
-  { value: "America/Toronto", label: "Eastern (Toronto)" },
-  { value: "America/Winnipeg", label: "Central (Winnipeg)" },
-  { value: "America/Edmonton", label: "Mountain (Edmonton)" },
-  { value: "America/Vancouver", label: "Pacific (Vancouver)" },
-  { value: "UTC", label: "UTC" },
-];
-
-export default function AdminPage() {
-  const [state, setState] = useState<SyncState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [triggering, setTriggering] = useState(false);
-  const [triggerResult, setTriggerResult] = useState<unknown>(null);
-  const [limit, setLimit] = useState("200");
-  const [pages, setPages] = useState("10");
-  const [dryRun, setDryRun] = useState(false);
-  const [fetchDetails, setFetchDetails] = useState(true);
-
-  const [schedule, setSchedule] = useState<Schedule | null>(null);
-  const [scheduleLoading, setScheduleLoading] = useState(true);
-  const [scheduleSaving, setScheduleSaving] = useState(false);
-  const [scheduleMessage, setScheduleMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-
-  const fetchStatus = async () => {
-    try {
-      const res = await fetch("/api/admin/sync-status", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setState(data.state);
-    } finally {
-      setLoading(false);
-    }
+type DashboardData = {
+  stats: {
+    totalLeads: number;
+    newLeads: number;
+    totalClients: number;
+    totalListings: number;
+    publishedPosts: number;
+    draftPosts: number;
   };
+  recentLeads: {
+    id: string;
+    name: string | null;
+    email: string;
+    source: string;
+    createdAt: string;
+    message: string | null;
+  }[];
+  syncState: {
+    lastRunAt: string | null;
+    status: string | null;
+    lastError: string | null;
+    processed: number | null;
+    upserted: number | null;
+  } | null;
+};
 
-  const fetchSchedule = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/mls-sync-schedule", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setSchedule(data);
-    } finally {
-      setScheduleLoading(false);
-    }
-  }, []);
+function StatCard({
+  label,
+  value,
+  sub,
+  href,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  href?: string;
+}) {
+  const inner = (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-zinc-900 dark:text-zinc-50">{value}</p>
+      {sub && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{sub}</p>}
+    </div>
+  );
+  if (href) {
+    return (
+      <Link href={href} className="block transition hover:opacity-80">
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
+}
+
+export default function AdminDashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStatus();
+    fetch("/api/admin/dashboard")
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => null)
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    fetchSchedule();
-  }, [fetchSchedule]);
-
-  async function runSync() {
-    setTriggering(true);
-    setTriggerResult(null);
-    try {
-      const res = await fetch("/api/admin/sync-trigger", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          limit: Number(limit) || 200,
-          pages: Number(pages) || 10,
-          dryRun,
-          fetchDetails,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      setTriggerResult(data);
-      await fetchStatus();
-    } finally {
-      setTriggering(false);
-    }
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Dashboard</h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
+      </div>
+    );
   }
 
-  async function saveSchedule() {
-    if (schedule == null) return;
-    setScheduleSaving(true);
-    setScheduleMessage(null);
-    try {
-      const res = await fetch("/api/admin/mls-sync-schedule", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          enabled: schedule.enabled,
-          time: schedule.time,
-          timezone: schedule.timezone,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to save");
-      }
-      setScheduleMessage({ type: "ok", text: "Daily sync schedule saved." });
-    } catch (e) {
-      setScheduleMessage({
-        type: "error",
-        text: e instanceof Error ? e.message : "Failed to save",
-      });
-    } finally {
-      setScheduleSaving(false);
-    }
-  }
+  const { stats, recentLeads, syncState } = data ?? {
+    stats: { totalLeads: 0, newLeads: 0, totalClients: 0, totalListings: 0, publishedPosts: 0, draftPosts: 0 },
+    recentLeads: [],
+    syncState: null,
+  };
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-        MLS Sync
-      </h1>
+      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Dashboard</h1>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Last run
-        </h2>
-        {loading ? (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Loading…
-          </p>
-        ) : !state ? (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            No sync has run yet.
-          </p>
-        ) : (
-          <dl className="mt-3 grid gap-2 text-sm">
-            <div className="flex gap-2">
-              <dt className="text-zinc-500 dark:text-zinc-400">Status</dt>
-              <dd className="font-medium">{state.status ?? "—"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-zinc-500 dark:text-zinc-400">Last run</dt>
-              <dd>
-                {state.lastRunAt
-                  ? new Date(state.lastRunAt).toLocaleString()
-                  : "—"}
-              </dd>
-            </div>
-            {state.processed != null && (
-              <div className="flex gap-2">
-                <dt className="text-zinc-500 dark:text-zinc-400">Processed</dt>
-                <dd>{state.processed}</dd>
-              </div>
-            )}
-            {state.upserted != null && (
-              <div className="flex gap-2">
-                <dt className="text-zinc-500 dark:text-zinc-400">Upserted</dt>
-                <dd>{state.upserted}</dd>
-              </div>
-            )}
-            {state.errorCount != null && state.errorCount > 0 && (
-              <div className="flex gap-2">
-                <dt className="text-zinc-500 dark:text-zinc-400">Errors</dt>
-                <dd className="text-red-600 dark:text-red-400">{state.errorCount}</dd>
-              </div>
-            )}
-            {state.lastError && (
-              <div className="flex gap-2">
-                <dt className="text-zinc-500 dark:text-zinc-400">Last error</dt>
-                <dd className="text-red-600 dark:text-red-400">{state.lastError}</dd>
-              </div>
-            )}
-          </dl>
-        )}
-      </section>
+      {/* Stats grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Leads"
+          value={stats.totalLeads}
+          sub={stats.newLeads > 0 ? `+${stats.newLeads} this week` : "None this week"}
+          href="/admin/leads"
+        />
+        <StatCard
+          label="Clients"
+          value={stats.totalClients}
+          href="/admin/clients"
+        />
+        <StatCard
+          label="Listings"
+          value={stats.totalListings.toLocaleString()}
+          sub="Active MLS listings"
+        />
+        <StatCard
+          label="Blog posts"
+          value={stats.publishedPosts}
+          sub={stats.draftPosts > 0 ? `${stats.draftPosts} draft${stats.draftPosts > 1 ? "s" : ""}` : "No drafts"}
+          href="/admin/blog"
+        />
+      </div>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Run sync now
-        </h2>
-        <div className="mt-4 flex flex-wrap items-end gap-4">
-          <div>
-            <label htmlFor="limit" className="block text-xs text-zinc-500">
-              Limit
-            </label>
-            <input
-              id="limit"
-              type="number"
-              min={1}
-              max={5000}
-              value={limit}
-              onChange={(e) => setLimit(e.target.value)}
-              className="mt-1 w-24 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-            />
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Recent leads */}
+        <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+            <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">Recent leads</h2>
+            <Link
+              href="/admin/leads"
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+            >
+              View all →
+            </Link>
           </div>
-          <div>
-            <label htmlFor="pages" className="block text-xs text-zinc-500">
-              Pages
-            </label>
-            <input
-              id="pages"
-              type="number"
-              min={1}
-              max={50}
-              value={pages}
-              onChange={(e) => setPages(e.target.value)}
-              className="mt-1 w-20 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-            />
-          </div>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={fetchDetails}
-              onChange={(e) => setFetchDetails(e.target.checked)}
-              className="rounded border-zinc-300"
-            />
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
-              Fetch full details (address, price, photos — slower, recommended)
-            </span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={dryRun}
-              onChange={(e) => setDryRun(e.target.checked)}
-              className="rounded border-zinc-300"
-            />
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
-              Dry run (no DB writes)
-            </span>
-          </label>
-          <button
-            type="button"
-            onClick={runSync}
-            disabled={triggering}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            {triggering ? "Running…" : "Run sync"}
-          </button>
-        </div>
-        {triggerResult != null && (
-          <pre className="mt-4 max-h-60 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-800">
-            {JSON.stringify(triggerResult, null, 2)}
-          </pre>
-        )}
-      </section>
+          {recentLeads.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-zinc-500 dark:text-zinc-400">No leads yet.</p>
+          ) : (
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {recentLeads.map((lead) => (
+                <li key={lead.id} className="flex items-start justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      {lead.name ?? lead.email}
+                    </p>
+                    <p className="truncate text-xs text-zinc-400">
+                      {SOURCE_LABELS[lead.source] ?? lead.source}
+                      {lead.message ? ` — ${lead.message.slice(0, 50)}${lead.message.length > 50 ? "…" : ""}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-zinc-400">
+                    {new Date(lead.createdAt).toLocaleDateString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-          Daily sync
-        </h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Run DDF sync automatically once per day at the set time (requires Vercel Cron and <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">CRON_SECRET</code> in production).
-        </p>
-        {scheduleLoading ? (
-          <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
-        ) : schedule ? (
-          <div className="mt-4 space-y-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={schedule.enabled}
-                onChange={(e) =>
-                  setSchedule((s) => (s ? { ...s, enabled: e.target.checked } : s))
-                }
-                className="rounded border-zinc-300"
-              />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                Enable daily sync
-              </span>
-            </label>
-            <div className="flex flex-wrap items-end gap-4">
-              <div>
-                <label htmlFor="schedule-time" className="block text-xs text-zinc-500">
-                  Time
-                </label>
-                <input
-                  id="schedule-time"
-                  type="time"
-                  value={schedule.time}
-                  onChange={(e) =>
-                    setSchedule((s) => (s ? { ...s, time: e.target.value } : s))
-                  }
-                  className="mt-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                />
-              </div>
-              <div>
-                <label htmlFor="schedule-tz" className="block text-xs text-zinc-500">
-                  Timezone
-                </label>
-                <select
-                  id="schedule-tz"
-                  value={schedule.timezone}
-                  onChange={(e) =>
-                    setSchedule((s) => (s ? { ...s, timezone: e.target.value } : s))
-                  }
-                  className="mt-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                >
-                  {TIMEZONES.map((tz) => (
-                    <option key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {schedule.lastScheduledRunAt && (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Last auto-run:{" "}
-                {new Date(schedule.lastScheduledRunAt).toLocaleString()}
-              </p>
-            )}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={saveSchedule}
-                disabled={scheduleSaving}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+        {/* Sync health + quick links */}
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">MLS sync</h2>
+              <Link
+                href="/admin/mls-sync"
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
               >
-                {scheduleSaving ? "Saving…" : "Save schedule"}
-              </button>
-              {scheduleMessage && (
-                <span
-                  className={
-                    scheduleMessage.type === "ok"
-                      ? "text-sm text-green-600 dark:text-green-400"
-                      : "text-sm text-red-600 dark:text-red-400"
-                  }
-                >
-                  {scheduleMessage.text}
-                </span>
-              )}
+                Manage →
+              </Link>
             </div>
-          </div>
-        ) : null}
-      </section>
+            {!syncState ? (
+              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">No sync run yet.</p>
+            ) : (
+              <div className="mt-3 space-y-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      syncState.status === "success"
+                        ? "bg-green-500"
+                        : syncState.status === "failed"
+                        ? "bg-red-500"
+                        : "bg-yellow-400"
+                    }`}
+                  />
+                  <span className="font-medium capitalize text-zinc-800 dark:text-zinc-200">
+                    {syncState.status ?? "Unknown"}
+                  </span>
+                </div>
+                {syncState.lastRunAt && (
+                  <p className="text-xs text-zinc-400">
+                    Last run: {new Date(syncState.lastRunAt).toLocaleString()}
+                  </p>
+                )}
+                {syncState.processed != null && (
+                  <p className="text-xs text-zinc-400">
+                    {syncState.upserted ?? 0} upserted / {syncState.processed} processed
+                  </p>
+                )}
+                {syncState.lastError && (
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">{syncState.lastError}</p>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="mb-3 text-sm font-medium text-zinc-900 dark:text-zinc-50">Quick links</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { href: "/admin/clients", label: "Clients" },
+                { href: "/admin/featured", label: "Featured listings" },
+                { href: "/admin/blog", label: "Blog" },
+                { href: "/admin/footprint", label: "Footprint" },
+                { href: "/admin/admins", label: "Admins" },
+                { href: "/admin/mls-sync", label: "MLS Sync" },
+              ].map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }
