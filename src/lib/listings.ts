@@ -29,6 +29,8 @@ export type ListingCard = {
   meta: string;
   location: string;
   image: string;
+  propertyType?: string | null;
+  status?: string | null;
 };
 
 type RawFeaturedListing = {
@@ -68,7 +70,7 @@ export function toListingCard(l: RawFeaturedListing): ListingCard {
       : null) ||
     LISTING_PLACEHOLDER_IMAGE;
 
-  return { id: l.id, href, title, price, meta, location, image };
+  return { id: l.id, href, title, price, meta, location, image, propertyType: l.propertyType ?? null, status: null };
 }
 
 type SearchResultListing = {
@@ -85,7 +87,15 @@ type SearchResultListing = {
   url: string;
 };
 
-export function toListingCardFromResult(l: SearchResultListing): ListingCard {
+export function toListingCardFromResult(l: SearchResultListing & { status?: string | null }): ListingCard {
+  // Use the stored photoUrl first (fast, no external call).
+  // If missing, fall back to the proxy which requests _LargePhoto_ from CREA DDF.
+  const mlsNumber = (l as { mlsNumber?: string | null }).mlsNumber?.trim();
+  const image =
+    l.photoUrl?.trim() ||
+    (mlsNumber ? `/api/listings/photo?mlsNumber=${encodeURIComponent(mlsNumber)}` : null) ||
+    LISTING_PLACEHOLDER_IMAGE;
+
   return {
     id: l.id,
     href: l.url,
@@ -93,6 +103,8 @@ export function toListingCardFromResult(l: SearchResultListing): ListingCard {
     price: formatPrice(l.price),
     meta: formatBedsBaths(l.beds, l.baths),
     location: [l.city?.trim(), l.province?.trim()].filter(Boolean).join(", "),
-    image: l.photoUrl?.trim() || LISTING_PLACEHOLDER_IMAGE,
+    image,
+    propertyType: l.propertyType ?? null,
+    status: l.status ?? null,
   };
 }

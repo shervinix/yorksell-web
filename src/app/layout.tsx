@@ -6,7 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: { default: "Yorksell", template: "%s | Yorksell" },
-  description: "Yorksell Real Estate Group — Toronto & GTA. Advice You Can Trust. Buying, selling, and investing.",
+  description: "Yorksell Real Estate Group. Toronto & GTA. Advice You Can Trust. Buying, selling, and investing.",
   openGraph: {
     title: "Yorksell Real Estate Group",
     description: "Toronto & GTA. Advice You Can Trust. Buying, selling, and investing.",

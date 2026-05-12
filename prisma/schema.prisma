@@ -166,13 +166,34 @@ model Client {
   showNotes                 Boolean  @default(true)
   showUpdates               Boolean  @default(true)
   statsJson                 Json?
+
+  // Transaction stage & agent contact
+  stage                     String?
+  agentName                 String?
+  agentTitle                String?
+  agentPhone                String?
+  agentEmail                String?
+
+  // Section visibility toggles
+  showChecklist             Boolean  @default(true)
+  showMessages              Boolean  @default(true)
+  showAppointments          Boolean  @default(true)
+  showOffers                Boolean  @default(true)
+
+  // Pinned listings (stored as array of listing IDs)
+  pinnedListingIds          String[] @default([])
+
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 
-  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  files  ClientFile[]
-  notes  ClientNote[]
-  updates ClientUpdate[]
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files        ClientFile[]
+  notes        ClientNote[]
+  updates      ClientUpdate[]
+  checklist    ClientChecklistItem[]
+  messages     ClientMessage[]
+  appointments ClientAppointment[]
+  offers       ClientOffer[]
 
   @@index([userId])
 }
@@ -210,6 +231,75 @@ model ClientUpdate {
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+}
+
+model ClientChecklistItem {
+  id         String    @id @default(cuid())
+  clientId   String
+  title      String
+  assignedTo String    @default("client")
+  done       Boolean   @default(false)
+  doneAt     DateTime?
+  order      Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientMessage {
+  id        String    @id @default(cuid())
+  clientId  String
+  fromAgent Boolean   @default(false)
+  content   String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientAppointment {
+  id        String   @id @default(cuid())
+  clientId  String
+  title     String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientOffer {
+  id          String    @id @default(cuid())
+  clientId    String
+  address     String?
+  price       Int?
+  status      String    @default("Pending")
+  conditions  String?
+  closingDate DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 model BlogPost {

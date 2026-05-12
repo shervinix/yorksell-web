@@ -9,14 +9,14 @@ const INTEREST_OPTIONS = [
   "Home setup",
   "Lifestyle and wellness",
   "Family and community (schools, childcare)",
-  "Not sure — help me figure it out",
+  "Not sure yet, help me figure it out",
 ] as const;
 
 const MOVE_TYPE_OPTIONS = [
   { label: "Moving to Toronto", desc: "Arriving from another city or country" },
   { label: "Moving from Toronto", desc: "Relocating out of the GTA" },
-  { label: "Moving to and from — I need both", desc: "Managing both sides of the move" },
-  { label: "Not sure yet — I need guidance", desc: "Let us help you figure it out" },
+  { label: "Moving to and from Toronto, I need both", desc: "Managing both sides of the move" },
+  { label: "Not sure yet, I need guidance", desc: "Let us help you figure it out" },
 ] as const;
 
 const labelClass = "block text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
@@ -138,7 +138,7 @@ export default function CompassIntakeForm() {
       <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
         Tell us where you&apos;re headed.
       </h2>
-      <p className="mt-2 text-[var(--muted)]">We&apos;ll take it from there — every detail of the move, managed.</p>
+      <p className="mt-2 text-[var(--muted)]">We&apos;ll take it from there. Every detail of the move, managed.</p>
 
       <form onSubmit={onSubmit} className="mt-10 space-y-10">
 
@@ -252,7 +252,7 @@ export default function CompassIntakeForm() {
           <label htmlFor="compass-notes" className={labelClass}>
             Anything else we should know <span className="normal-case font-normal text-[var(--muted)]">(optional)</span>
           </label>
-          <textarea id="compass-notes" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} placeholder="Share any context that would help us support your move — special requirements, timeline constraints, family needs..." />
+          <textarea id="compass-notes" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} placeholder="Share any context that would help us support your move: special requirements, timeline constraints, family needs..." />
         </div>
 
         {error && (

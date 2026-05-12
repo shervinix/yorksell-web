@@ -159,7 +159,7 @@ export default function ListWithUsForm() {
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
           )}
           <button type="submit" disabled={loading} className="inline-flex w-full h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] disabled:opacity-60">
-            {loading ? "Sending…" : <><span>Get in touch — let&apos;s list your property</span><ArrowIcon /></>}
+            {loading ? "Sending…" : <><span>Get in touch and let&apos;s list your property</span><ArrowIcon /></>}
           </button>
         </form>
       )}

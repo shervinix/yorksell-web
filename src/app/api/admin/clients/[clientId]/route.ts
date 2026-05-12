@@ -33,6 +33,10 @@ export async function GET(
       files: { orderBy: { createdAt: "desc" } },
       notes: { orderBy: { createdAt: "desc" } },
       updates: { orderBy: { createdAt: "desc" } },
+      checklist: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] },
+      messages: { orderBy: { createdAt: "asc" } },
+      appointments: { orderBy: { date: "asc" } },
+      offers: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -56,6 +60,26 @@ export async function GET(
       updates: client.updates.map((u) => ({
         ...u,
         createdAt: u.createdAt.toISOString(),
+      })),
+      checklist: client.checklist.map((c) => ({
+        ...c,
+        doneAt: c.doneAt?.toISOString() ?? null,
+        createdAt: c.createdAt.toISOString(),
+      })),
+      messages: client.messages.map((m) => ({
+        ...m,
+        readAt: m.readAt?.toISOString() ?? null,
+        createdAt: m.createdAt.toISOString(),
+      })),
+      appointments: client.appointments.map((a) => ({
+        ...a,
+        date: a.date.toISOString(),
+        createdAt: a.createdAt.toISOString(),
+      })),
+      offers: client.offers.map((o) => ({
+        ...o,
+        closingDate: o.closingDate?.toISOString() ?? null,
+        createdAt: o.createdAt.toISOString(),
       })),
     },
   });
@@ -95,6 +119,16 @@ export async function PATCH(
   if (body.showStats !== undefined) data.showStats = body.showStats;
   if (body.showNotes !== undefined) data.showNotes = body.showNotes;
   if (body.showUpdates !== undefined) data.showUpdates = body.showUpdates;
+  if (body.showChecklist !== undefined) data.showChecklist = body.showChecklist;
+  if (body.showMessages !== undefined) data.showMessages = body.showMessages;
+  if (body.showAppointments !== undefined) data.showAppointments = body.showAppointments;
+  if (body.showOffers !== undefined) data.showOffers = body.showOffers;
+  if (body.stage !== undefined) data.stage = body.stage;
+  if (body.agentName !== undefined) data.agentName = body.agentName;
+  if (body.agentTitle !== undefined) data.agentTitle = body.agentTitle;
+  if (body.agentPhone !== undefined) data.agentPhone = body.agentPhone;
+  if (body.agentEmail !== undefined) data.agentEmail = body.agentEmail;
+  if (body.pinnedListingIds !== undefined) data.pinnedListingIds = body.pinnedListingIds;
   if (body.statsJson !== undefined) {
     data.statsJson =
       body.statsJson === null

@@ -204,10 +204,97 @@ export const adminClientPatchSchema = z
     showStats: z.boolean().optional(),
     showNotes: z.boolean().optional(),
     showUpdates: z.boolean().optional(),
+    showChecklist: z.boolean().optional(),
+    showMessages: z.boolean().optional(),
+    showAppointments: z.boolean().optional(),
+    showOffers: z.boolean().optional(),
     statsJson: z.unknown().optional().nullable(),
+    stage: z.union([z.string().trim().max(100), z.null()]).optional(),
+    agentName: z.union([z.string().trim().max(200), z.null()]).optional(),
+    agentTitle: z.union([z.string().trim().max(200), z.null()]).optional(),
+    agentPhone: z.union([z.string().trim().max(40), z.null()]).optional(),
+    agentEmail: z.union([z.string().trim().max(320).email(), z.null()]).optional(),
+    pinnedListingIds: z.array(z.string().trim().max(80)).max(20).optional(),
   })
   .strict()
   .refine((o) => Object.keys(o).length > 0, { message: "At least one field required" });
+
+export const adminChecklistPostSchema = z
+  .object({
+    title: z.string().trim().min(1).max(300),
+    assignedTo: z.enum(["client", "agent"]).optional(),
+    order: z.number().int().min(0).max(1000).optional(),
+  })
+  .strict();
+
+export const adminChecklistPatchSchema = z
+  .object({
+    title: z.string().trim().min(1).max(300).optional(),
+    assignedTo: z.enum(["client", "agent"]).optional(),
+    done: z.boolean().optional(),
+    order: z.number().int().min(0).max(1000).optional(),
+  })
+  .strict()
+  .refine((o) => Object.keys(o).length > 0, { message: "At least one field required" });
+
+export const adminMessagePostSchema = z
+  .object({
+    content: z.string().trim().min(1).max(10_000),
+    fromAgent: z.boolean().optional(),
+  })
+  .strict();
+
+export const adminAppointmentPostSchema = z
+  .object({
+    title: z.string().trim().min(1).max(300),
+    date: z.string().trim().min(1).max(40),
+    notes: z.union([z.string().trim().max(10_000), z.null()]).optional(),
+  })
+  .strict();
+
+export const adminAppointmentPatchSchema = z
+  .object({
+    title: z.string().trim().min(1).max(300).optional(),
+    date: z.string().trim().min(1).max(40).optional(),
+    notes: z.union([z.string().trim().max(10_000), z.null()]).optional(),
+  })
+  .strict()
+  .refine((o) => Object.keys(o).length > 0, { message: "At least one field required" });
+
+export const adminOfferPostSchema = z
+  .object({
+    address: z.union([z.string().trim().max(500), z.null()]).optional(),
+    price: z.union([z.number().int().positive(), z.null()]).optional(),
+    status: z.string().trim().max(50).optional(),
+    conditions: z.union([z.string().trim().max(5000), z.null()]).optional(),
+    closingDate: z.union([z.string().trim().max(40), z.null()]).optional(),
+    notes: z.union([z.string().trim().max(10_000), z.null()]).optional(),
+  })
+  .strict();
+
+export const adminOfferPatchSchema = z
+  .object({
+    address: z.union([z.string().trim().max(500), z.null()]).optional(),
+    price: z.union([z.number().int().positive(), z.null()]).optional(),
+    status: z.string().trim().max(50).optional(),
+    conditions: z.union([z.string().trim().max(5000), z.null()]).optional(),
+    closingDate: z.union([z.string().trim().max(40), z.null()]).optional(),
+    notes: z.union([z.string().trim().max(10_000), z.null()]).optional(),
+  })
+  .strict()
+  .refine((o) => Object.keys(o).length > 0, { message: "At least one field required" });
+
+export const memberMessagePostSchema = z
+  .object({
+    content: z.string().trim().min(1).max(10_000),
+  })
+  .strict();
+
+export const memberChecklistToggleSchema = z
+  .object({
+    done: z.boolean(),
+  })
+  .strict();
 
 export const adminNotePostSchema = z
   .object({

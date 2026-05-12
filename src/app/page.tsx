@@ -4,6 +4,7 @@ import { getFeaturedListings } from "@/lib/get-featured-listings";
 import { ListingCard } from "@/app/listings/ListingCard";
 import JoinNetworkForm from "@/app/JoinNetworkForm";
 import HeroSearch from "@/app/HeroSearch";
+import FadeUp from "@/app/FadeUp";
 
 export const revalidate = 60;
 
@@ -34,13 +35,13 @@ export default async function HomePage() {
 
         <div className="relative z-10 mx-auto flex max-w-6xl flex-1 px-4 pb-16 pt-2 sm:px-6 md:pb-24 md:pt-4">
           <div className="flex max-w-2xl flex-col justify-end">
-            <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl">
+            <h1 className="hero-enter-1 text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl">
               Advice You Can Trust.
             </h1>
-            <p className="mt-5 max-w-lg text-lg text-white/80 leading-relaxed">
+            <p className="hero-enter-2 mt-5 max-w-lg text-lg text-white/80 leading-relaxed">
               Real estate across Toronto and the GTA. Clear process, honest advice, no noise
             </p>
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="hero-enter-3 mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href="/contact"
                 className="inline-flex h-12 items-center justify-center rounded-xl bg-[var(--accent)] px-6 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)]"
@@ -62,7 +63,7 @@ export default async function HomePage() {
       <section className="bg-[var(--background)]">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
           <div className="grid gap-12 md:grid-cols-2 md:items-center">
-            <div>
+            <FadeUp>
               <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
                 The team behind the result.
               </h2>
@@ -97,7 +98,8 @@ export default async function HomePage() {
                   Contact
                 </Link>
               </div>
-            </div>
+            </FadeUp>
+            <FadeUp delay={150}>
             <div className="overflow-hidden rounded-2xl border border-white/[0.12] bg-[var(--surface)] shadow-[0_8px_40px_rgba(0,0,0,0.55)]">
               <div className="relative aspect-[4/3] w-full">
                 <img
@@ -114,6 +116,7 @@ export default async function HomePage() {
                 </div>
               </div>
             </div>
+            </FadeUp>
           </div>
         </div>
       </section>
@@ -128,37 +131,54 @@ export default async function HomePage() {
               Our Expertise
             </h2>
             <p className="mt-2 text-[var(--muted)]">
-              Three ways to work with us, same standard of service.
+              Four ways to work with us, same standard of service.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            <ServiceCard
-              title="Buy"
-              body="We help you find the right property and guide you through offer and closing."
-              bullets={["Curated search", "Offer strategy", "Closing support"]}
-              href="/listings"
-              cta="View listings"
-              image="https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=800&q=80"
-              imageAlt=""
-            />
-            <ServiceCard
-              title="Sell"
-              body="From pricing to marketing to negotiation, we manage the full process."
-              bullets={["Market pricing", "Professional marketing", "Expert negotiation"]}
-              href="/contact"
-              cta="Book a consultation"
-              image="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"
-              imageAlt=""
-            />
-            <ServiceCard
-              title="Invest"
-              body="We evaluate numbers and strategy so you can make informed decisions."
-              bullets={["Cap rate and NOI analysis", "Acquisition structuring and due diligence", "Disposition and exit strategy"]}
-              href="/contact"
-              cta="Get in touch"
-              image="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
-              imageAlt=""
-            />
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <FadeUp delay={0} className="h-full">
+              <ServiceCard
+                title="Buy"
+                body="We help you find the right property and guide you through offer and closing."
+                bullets={["Curated search", "Offer strategy", "Closing support"]}
+                href="/listings"
+                cta="View listings"
+                image="https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=800&q=80"
+                imageAlt=""
+              />
+            </FadeUp>
+            <FadeUp delay={100} className="h-full">
+              <ServiceCard
+                title="Sell"
+                body="From pricing to marketing to negotiation, we manage the full process."
+                bullets={["Market pricing", "Professional marketing", "Expert negotiation"]}
+                href="/contact"
+                cta="Book a consultation"
+                image="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"
+                imageAlt=""
+              />
+            </FadeUp>
+            <FadeUp delay={200} className="h-full">
+              <ServiceCard
+                title="Invest"
+                body="We evaluate numbers and strategy so you can make informed decisions."
+                bullets={["Cap rate and NOI analysis", "Due diligence", "Disposition and exit strategy"]}
+                href="/contact"
+                cta="Get in touch"
+                image="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
+                imageAlt=""
+              />
+            </FadeUp>
+            <FadeUp delay={300} className="h-full">
+              <ServiceCard
+                title="Compass"
+                body="Full-service relocation management for clients moving to or from Toronto."
+                bullets={["End-to-end coordination", "Cross-border expertise", "One point of contact"]}
+                href="/compass"
+                cta="Explore Compass"
+                image="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80"
+                imageAlt=""
+              />
+            </FadeUp>
           </div>
         </div>
       </section>
@@ -186,11 +206,11 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <FadeUp className="mt-10 grid gap-6 md:grid-cols-3">
               {featured.map((l) => (
                 <ListingCard key={l.id} listing={l} />
               ))}
-            </div>
+            </FadeUp>
 
             <div className="mt-10 md:hidden">
               <Link
@@ -215,7 +235,7 @@ export default async function HomePage() {
                 What clients say
               </h2>
               <p className="mt-2 text-[var(--muted)]">
-                Real reviews from Google — Toronto & GTA buyers and sellers.
+                Real reviews from Google. Toronto & GTA buyers and sellers.
               </p>
             </div>
             <a
@@ -230,9 +250,9 @@ export default async function HomePage() {
           </div>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {REVIEWS.map((review, i) => (
+              <FadeUp key={i} delay={Math.min(i * 80, 400)} className="h-full">
               <article
-                key={i}
-                className="flex flex-col rounded-2xl border border-white/[0.12] bg-[var(--surface)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.5)]"
+                className="flex h-full flex-col rounded-2xl border border-white/[0.12] bg-[var(--surface)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.5)]"
               >
                 <div className="flex items-center gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -266,6 +286,7 @@ export default async function HomePage() {
                   Google review
                 </p>
               </article>
+              </FadeUp>
             ))}
           </div>
         </div>
@@ -284,6 +305,7 @@ export default async function HomePage() {
           />
         </div>
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20">
+          <FadeUp>
           <div className="rounded-2xl border border-white/[0.12] bg-[var(--surface)] p-8 shadow-[0_8px_40px_rgba(0,0,0,0.5)] md:p-10">
             <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
               <div className="max-w-xl">
@@ -310,8 +332,10 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
+          </FadeUp>
 
           {/* Join Our Network / Newsletter */}
+          <FadeUp delay={100}>
           <div className="mt-16 rounded-3xl border border-white/[0.12] bg-[var(--surface)] p-10 shadow-[0_8px_40px_rgba(0,0,0,0.5)] md:p-14 lg:p-16">
             <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
               <div className="max-w-lg">
@@ -325,6 +349,7 @@ export default async function HomePage() {
               <JoinNetworkForm />
             </div>
           </div>
+          </FadeUp>
         </div>
       </section>
     </div>
@@ -363,7 +388,7 @@ function ServiceCard({
   imageAlt?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.12] bg-[var(--surface)] shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[var(--surface)] shadow-[0_8px_40px_rgba(0,0,0,0.5)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.6)]">
       {image && (
         <div className="relative aspect-[16/10] w-full overflow-hidden">
           <img

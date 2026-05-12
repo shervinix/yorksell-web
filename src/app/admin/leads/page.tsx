@@ -8,6 +8,8 @@ const SOURCE_LABELS: Record<string, string> = {
   listing_contact: "Listing",
   home_cta: "Home CTA",
   compass_page: "Compass",
+  compass_partner: "Partner",
+  compass_corporate: "Corporate",
   valuation_page: "Valuation",
   join_page: "Join",
 };
@@ -17,6 +19,8 @@ const SOURCE_COLORS: Record<string, string> = {
   listing_contact: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
   home_cta: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
   compass_page: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  compass_partner: "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300",
+  compass_corporate: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
   valuation_page: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300",
   join_page: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300",
 };

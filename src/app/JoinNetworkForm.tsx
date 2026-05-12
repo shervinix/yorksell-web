@@ -35,7 +35,7 @@ export default function JoinNetworkForm() {
         return;
       }
       setStatus("success");
-      setMessage(data.message ?? "Thanks — you're on the list.");
+      setMessage(data.message ?? "Thanks, you're on the list.");
       setEmail("");
       setName("");
     } catch {

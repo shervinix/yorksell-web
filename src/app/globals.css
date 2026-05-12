@@ -43,6 +43,15 @@ body {
   min-width: 200px;
 }
 
+/* ── Hero load animations ──────────────────────────────────────────────────── */
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+.hero-enter-1 { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.hero-enter-2 { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+.hero-enter-3 { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.30s both; }
+
 /* Custom select arrow — removes browser default and injects a dark-theme chevron */
 select {
   appearance: none;
@@ -51,6 +60,105 @@ select {
   background-position: right 12px center;
   background-size: 16px 16px;
   padding-right: 2.5rem;
+}
+
+/* ── Blog prose styles (manual — @tailwindcss/typography not installed) ────── */
+.blog-prose {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.blog-prose > * + * { margin-top: 1.5em; }
+.blog-prose h1,
+.blog-prose h2,
+.blog-prose h3,
+.blog-prose h4 {
+  color: var(--foreground);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin-top: 2em;
+  margin-bottom: 0.6em;
+}
+.blog-prose h1 { font-size: 1.875rem; }
+.blog-prose h2 { font-size: 1.375rem; }
+.blog-prose h3 { font-size: 1.125rem; }
+.blog-prose h4 { font-size: 1rem; }
+.blog-prose p { margin-top: 1.25em; margin-bottom: 0; }
+.blog-prose a {
+  color: #4ade80;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.blog-prose a:hover { color: #86efac; }
+.blog-prose strong { color: var(--foreground); font-weight: 600; }
+.blog-prose em { font-style: italic; }
+.blog-prose ul,
+.blog-prose ol {
+  padding-left: 1.5rem;
+  margin-top: 1.25em;
+  margin-bottom: 0;
+}
+.blog-prose ul { list-style-type: disc; }
+.blog-prose ol { list-style-type: decimal; }
+.blog-prose li { margin-top: 0.4em; }
+.blog-prose li > p { margin: 0; }
+.blog-prose blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1.25rem;
+  color: var(--foreground);
+  font-style: italic;
+  margin-left: 0;
+  margin-right: 0;
+}
+.blog-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+}
+.blog-prose pre {
+  background: var(--surface-elevated);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.blog-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.blog-prose hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin: 2.5em 0;
+}
+.blog-prose img {
+  border-radius: 0.75rem;
+  width: 100%;
+  height: auto;
+}
+.blog-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.blog-prose th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--foreground);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  padding: 0.5rem 0.75rem;
+}
+.blog-prose td {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0.5rem 0.75rem;
 }
 
 /* Listings filter checkboxes – match dark theme (unchecked = dark, checked = accent) */
